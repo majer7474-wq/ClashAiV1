@@ -1,0 +1,45 @@
+name: Export YOLO model
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ultralytics onnx
+
+      - name: Download YOLO weights
+        run: |
+          curl -L --fail --retry 3 \
+            "https://huggingface.co/SudhishNeel/clash-royale-detector/resolve/main/v10/best.pt" \
+            -o best.pt
+          sha256sum best.pt
+          test "$(sha256sum best.pt | cut -d' ' -f1)" = \
+          "d0e19e806a834719a4e51f7405641048549e3c2871887306e51b21dde37b3ae2"
+
+      - name: Export and inspect ONNX
+        run: python tools/export_yolo.py
+
+      - name: Upload ONNX model and metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClashAI-YOLO-ONNX
+          path: |
+            best.onnx
+            best.pt
+          retention-days: 7
