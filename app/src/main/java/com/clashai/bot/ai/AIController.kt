@@ -3,17 +3,15 @@ package com.clashai.bot.ai
 import com.clashai.bot.vision.ScreenObservation
 
 /**
- * Validates live vision data and delegates actual move selection to the
- * Hog 2.6 strategy engine. Invalid observations always produce a no-op.
+ * Validates live vision data and delegates decisions to the shared ClashAiV1
+ * engine. Invalid observations always produce a no-op.
  */
 class AIController {
-    private val strategy = Hog26Engine()
+    private val engine = ClashAIEngine()
     private val elixirTracker = ElixirTracker()
 
     fun process(observation: ScreenObservation): AIAction {
         val hand = observation.visibleCards.distinct()
-        // OCR may miss an occasional frame. Keep a time-based elixir estimate
-        // from the last visual reading, but never trust it after 1.8 seconds.
         val visualElixir = observation.elixir
         if (visualElixir != null) elixirTracker.update(visualElixir)
         val elixir = visualElixir ?: elixirTracker.getElixir().takeIf {
@@ -26,28 +24,28 @@ class AIController {
         ) {
             return noAction("Hand recognition incomplete or uncertain; no card will be played")
         }
-
         if (elixir == null || elixir !in 0f..10f) {
             return noAction("Elixir reading unavailable; waiting")
         }
 
-        if (System.currentTimeMillis() - observation.capturedAtMs > MAX_OBSERVATION_AGE_MS) {
+        val age = System.currentTimeMillis() - observation.capturedAtMs
+        if (age < 0L || age > MAX_OBSERVATION_AGE_MS) {
             return noAction("Live observation is stale; waiting for a fresh frame")
         }
 
-        return strategy.chooseAction(
+        return engine.chooseAction(
             BattleState(
                 elixir = elixir,
                 hand = hand,
                 enemyThreat = observation.enemyThreat,
                 handConfidence = observation.handConfidence,
-                observationAgeMs = System.currentTimeMillis() - observation.capturedAtMs
+                observationAgeMs = age
             )
         )
     }
 
     fun recordPlayed(card: Card) {
-        strategy.recordPlay(card)
+        engine.recordPlay(card)
     }
 
     private fun noAction(reason: String) = AIAction(

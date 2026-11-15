@@ -15,7 +15,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.clashai.bot.ai.BattleState
 import com.clashai.bot.ai.Card
-import com.clashai.bot.ai.Hog26Engine
+import com.clashai.bot.ai.ClashAIEngine
 import com.clashai.bot.ai.Threat
 import kotlin.math.min
 import kotlin.random.Random
@@ -90,7 +90,7 @@ class SimulatorActivity : Activity() {
         root.addView(arena, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(controls)
         val hint = TextView(this).apply {
-            text = "Tap one of the four cards to play manually. AI uses the project's Hog 2.6 decision engine. This is a training model, not a 1:1 game clone."
+            text = "Tap one of the four cards to play manually. AI uses the project's ClashAiV1 decision engine. This is a training model, not a 1:1 game clone."
             textSize = 11f
             setTextColor(Color.LTGRAY)
             setPadding(4, 6, 4, 2)
@@ -117,7 +117,7 @@ private data class SandboxUnit(
 )
 
 private class SandboxBattle {
-    private val policy = Hog26Engine()
+    private val policy = ClashAIEngine()
     private val deck = listOf(
         Card.HOG_RIDER, Card.MUSKETEER, Card.CANNON, Card.FIREBALL,
         Card.SKELETONS, Card.ICE_GOLEM, Card.ICE_SPIRIT, Card.LOG
