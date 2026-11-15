@@ -34,6 +34,7 @@ class ScreenCaptureService : Service() {
         const val EXTRA_HAND_COMPLETE = "observation_hand_complete"
         const val EXTRA_HAND_CONFIDENCE = "observation_hand_confidence"
         const val EXTRA_ELIXIR_CONFIDENCE = "observation_elixir_confidence"
+        const val EXTRA_ERROR = "observation_error"
     }
 
     private var projection: MediaProjection? = null
@@ -144,6 +145,10 @@ class ScreenCaptureService : Service() {
 
         } catch (e: Exception) {
             Log.e(TAG, "Capture error", e)
+            sendBroadcast(Intent(ACTION_OBSERVATION).apply {
+                setPackage(packageName)
+                putExtra(EXTRA_ERROR, "INIT: ${e.javaClass.simpleName}: ${e.message ?: "unknown"}")
+            })
             stopCapture()
         }
     }
@@ -193,6 +198,8 @@ class ScreenCaptureService : Service() {
                 TAG,
                 "Frame ${width}x${height} | Brightness=${metrics.brightness} | " +
                     "Detections=${observation.detections.size} | " +
+                    "Elixir=${observation.elixir} | Hand=${observation.visibleCards} " +
+                    "complete=${observation.handComplete} handConf=${observation.handConfidence} | " +
                     "Threat=${observation.enemyThreat} | Confidence=${observation.confidence}"
             )
             sendBroadcast(Intent(ACTION_OBSERVATION).apply {
