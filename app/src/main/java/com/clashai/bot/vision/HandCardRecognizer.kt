@@ -26,7 +26,7 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
 
     private val templateFingerprints: List<Pair<String, Fingerprint>> =
         catalog.all().mapNotNull { template ->
-            runCatching { template.id to fingerprint(template.bitmap) }.getOrNull()
+            runCatching { template.id to fingerprintTemplate(template.bitmap) }.getOrNull()
         }
 
     fun recognize(frame: Bitmap): Result {
@@ -58,7 +58,13 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
             val ranked = templateFingerprints.map { (id, fp) -> Match(id, similarity(query, fp)) }
                 .sortedByDescending { it.score }
             val best = ranked.firstOrNull() ?: return Result(emptyList(), emptyList(), 0f, false)
-            val margin = best.score - (ranked.getOrNull(1)?.score ?: 0f)
+            // Evolution/base artwork variants may represent the same playable card.
+            // Compare against the strongest DIFFERENT card identity.
+            val bestCard = cardForAsset(best.id)
+            val differentCardRunnerUp = ranked.drop(1).firstOrNull {
+                cardForAsset(it.id) != bestCard
+            }
+            val margin = best.score - (differentCardRunnerUp?.score ?: 0f)
             if (best.score < MIN_SCORE || margin < MIN_MARGIN) {
                 return Result(emptyList(), matches.map { it.id }, minOf(best.score, MIN_SCORE), false)
             }
@@ -75,13 +81,24 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
         "musketeer" -> Card.MUSKETEER
         "cannon" -> Card.CANNON
         "fireball" -> Card.FIREBALL
-        "skeletons", "skeletons-ev1" -> Card.SKELETONS
+        "skeletons", "skeletons-ev1", "skeletons-evolution" -> Card.SKELETONS
         "ice-golem" -> Card.ICE_GOLEM
-        "ice-spirit", "ice-spirit-ev1" -> Card.ICE_SPIRIT
+        "ice-spirit", "ice-spirit-ev1", "ice-spirit-evolution" -> Card.ICE_SPIRIT
         "the-log" -> Card.LOG
         else -> null
     }
 
+    private fun fingerprintTemplate(source: Bitmap): Fingerprint {
+        // Match the same inner card-art window used for the live hand slot.
+        // Comparing a cropped screenshot against an uncropped reference image
+        // caused systematic score loss and rejected otherwise correct cards.
+        val left = (source.width * 0.10f).toInt().coerceIn(0, source.width - 1)
+        val top = (source.height * 0.05f).toInt().coerceIn(0, source.height - 1)
+        val right = (source.width * 0.90f).toInt().coerceIn(left + 1, source.width)
+        val bottom = (source.height * 0.78f).toInt().coerceIn(top + 1, source.height)
+        val crop = Bitmap.createBitmap(source, left, top, right - left, bottom - top)
+        return try { fingerprint(crop) } finally { crop.recycle() }
+    }
     private fun fingerprint(source: Bitmap): Fingerprint {
         val scaled = Bitmap.createScaledBitmap(source, GRID, GRID, true)
         try {
