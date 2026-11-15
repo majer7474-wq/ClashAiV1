@@ -106,7 +106,12 @@ class ScreenCaptureService : Service() {
 
             projection = manager.getMediaProjection(resultCode, data)
 
-            val metrics = resources.displayMetrics
+            // Capture the physical display, not the app's density-scaled
+            // resource bounds. Shizuku taps use physical display pixels too.
+            val metrics = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            (getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager)
+                .defaultDisplay.getRealMetrics(metrics)
             val width = metrics.widthPixels
             val height = metrics.heightPixels
             val density = metrics.densityDpi

@@ -295,24 +295,34 @@ class MainActivity : Activity() {
 
         // Match the exact hand ROIs used by HandCardRecognizer. The old
         // equal-width 6%-94% formula tapped well left of the actual cards.
-        val metrics = android.util.DisplayMetrics()
-        @Suppress("DEPRECATION")
-        windowManager.defaultDisplay.getRealMetrics(metrics)
-        val width = metrics.widthPixels
-        val height = metrics.heightPixels
-        val scale = minOf(width / 1080f, height / 2400f)
-        val offsetX = (width - 1080f * scale) / 2f
-        val offsetY = (height - 2400f * scale) / 2f
+        // Use the exact dimensions of the captured frame. This keeps OCR,
+        // card recognition and Shizuku input on one coordinate system and
+        // avoids mismatches between app-window metrics and the real display.
+        val viewport = com.clashai.bot.vision.GameViewport.fromFrame(
+            observation.frameWidth, observation.frameHeight
+        ) ?: run {
+            stopAutoplay()
+            status.text = "AUTOPLAY STOPPED: INVALID SCREEN GEOMETRY"
+            return
+        }
         val slotCenters = floatArrayOf(340f, 540f, 740f, 950f)
-        val slotX = (offsetX + slotCenters[slot] * scale).toInt()
-        val slotY = (offsetY + 2170f * scale).toInt()
-        // Clash Royale renders its 1080x2400 portrait playfield centered inside
-        // the tablet's landscape display. Map normalized arena coordinates into
-        // that same letterboxed viewport used by the hand-card crops.
-        val targetLogicalX = (action.placementX ?: 0.50f) * 1080f
-        val targetLogicalY = (action.placementY ?: 0.70f) * 2400f
-        val targetX = (offsetX + targetLogicalX * scale).toInt()
-        val targetY = (offsetY + targetLogicalY * scale).toInt()
+        val slot = viewport.mapPoint(slotCenters[slot], 2170f) ?: run {
+            stopAutoplay()
+            status.text = "AUTOPLAY STOPPED: CARD SLOT OUTSIDE GAME VIEW"
+            return
+        }
+        val target = viewport.mapPoint(
+            (action.placementX ?: 0.50f) * com.clashai.bot.vision.GameViewport.REFERENCE_WIDTH,
+            (action.placementY ?: 0.70f) * com.clashai.bot.vision.GameViewport.REFERENCE_HEIGHT
+        ) ?: run {
+            stopAutoplay()
+            status.text = "AUTOPLAY STOPPED: TARGET OUTSIDE GAME VIEW"
+            return
+        }
+        val slotX = slot.x
+        val slotY = slot.y
+        val targetX = target.x
+        val targetY = target.y
         val sent = ShizukuInput.swipe(slotX, slotY, targetX, targetY, 220) { success ->
             runOnUiThread {
                 if (!autoplay) return@runOnUiThread

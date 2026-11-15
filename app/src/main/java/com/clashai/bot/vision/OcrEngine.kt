@@ -1,5 +1,6 @@
 package com.clashai.bot.vision
 
+
 import android.graphics.Bitmap
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -22,13 +23,14 @@ class OcrEngine {
         // directly below the card row. Do not OCR the lower-left emote/next-card area.
         // Crop relative to the actual 1080x2400 game viewport, not the
         // physical tablet frame. This handles centered letterboxing in split view.
-        val scale = minOf(bitmap.width / 1080f, bitmap.height / 2400f)
-        val offsetX = (bitmap.width - 1080f * scale) / 2f
-        val offsetY = (bitmap.height - 2400f * scale) / 2f
-        val left = (offsetX + 300f * scale).toInt().coerceIn(0, bitmap.width - 1)
-        val top = (offsetY + 1980f * scale).toInt().coerceIn(0, bitmap.height - 1)
-        val right = (offsetX + 780f * scale).toInt().coerceIn(left + 1, bitmap.width)
-        val bottom = (offsetY + 2395f * scale).toInt().coerceIn(top + 1, bitmap.height)
+        val viewport = GameViewport.fromFrame(bitmap.width, bitmap.height)
+            ?: return OcrResult("", null, emptyList(), 0f)
+        val left = viewport.mapX(300f) ?: return OcrResult("", null, emptyList(), 0f)
+        val top = viewport.mapY(1980f) ?: return OcrResult("", null, emptyList(), 0f)
+        val right = (viewport.mapX(780f) ?: return OcrResult("", null, emptyList(), 0f))
+            .coerceIn(left + 1, bitmap.width)
+        val bottom = (viewport.mapY(2395f) ?: return OcrResult("", null, emptyList(), 0f))
+            .coerceIn(top + 1, bitmap.height)
         val hudCrop = try {
             Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
         } catch (_: Exception) {

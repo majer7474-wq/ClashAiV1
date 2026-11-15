@@ -41,17 +41,16 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
         val slotRight = floatArrayOf(450f, 650f, 850f, 1060f)
         // Keep the reference game's 1080x2400 aspect ratio. Independent X/Y
         // scaling crops the wrong cards on tablets with letterboxed game view.
-        val scale = minOf(frame.width / 1080f, frame.height / 2400f)
-        val offsetX = (frame.width - 1080f * scale) / 2f
-        val offsetY = (frame.height - 2400f * scale) / 2f
+        val viewport = GameViewport.fromFrame(frame.width, frame.height)
+            ?: return Result(emptyList(), emptyList(), 0f, false, "INVALID GAME VIEWPORT: ${frame.width}x${frame.height}")
         val matches = mutableListOf<Match>()
         val slotDiagnostics = mutableListOf<String>()
 
         for (slot in 0..3) {
-            val x0 = (offsetX + slotLeft[slot] * scale).toInt().coerceIn(0, frame.width - 1)
-            val x1 = (offsetX + slotRight[slot] * scale).toInt().coerceIn(x0 + 1, frame.width)
-            val y0 = (offsetY + 2020f * scale).toInt().coerceIn(0, frame.height - 1)
-            val y1 = (offsetY + 2320f * scale).toInt().coerceIn(y0 + 1, frame.height)
+            val x0 = viewport.mapX(slotLeft[slot]) ?: return Result(emptyList(), emptyList(), 0f, false, "SLOT OUTSIDE GAME VIEW")
+            val x1 = (viewport.mapX(slotRight[slot]) ?: return Result(emptyList(), emptyList(), 0f, false, "SLOT OUTSIDE GAME VIEW")).coerceIn(x0 + 1, frame.width)
+            val y0 = viewport.mapY(2020f) ?: return Result(emptyList(), emptyList(), 0f, false, "HAND OUTSIDE GAME VIEW")
+            val y1 = (viewport.mapY(2320f) ?: return Result(emptyList(), emptyList(), 0f, false, "HAND OUTSIDE GAME VIEW")).coerceIn(y0 + 1, frame.height)
             if (x1 <= x0 || y1 <= y0) return Result(emptyList(), emptyList(), 0f, false)
 
             val crop = runCatching {
