@@ -15,16 +15,15 @@ class AIController {
         val hand = observation.visibleCards.distinct()
         val elixir = observation.elixir
 
-        if (observation.confidence < MIN_CONFIDENCE) {
-            return noAction("Vision confidence too low; waiting for a clearer frame")
-        }
-
         if (!observation.handComplete || observation.handConfidence < MIN_HAND_CONFIDENCE || hand.size != 4) {
             return noAction("Hand recognition incomplete or uncertain; no card will be played")
         }
 
         if (elixir == null || elixir !in 0f..10f) {
             return noAction("Elixir reading unavailable; waiting")
+        }
+        if (System.currentTimeMillis() - observation.capturedAtMs > MAX_OBSERVATION_AGE_MS) {
+            return noAction("Live observation is stale; waiting for a fresh frame")
         }
 
         val affordable = hand.filter { it.cost <= elixir }
@@ -84,7 +83,7 @@ class AIController {
     )
 
     companion object {
-        private const val MIN_CONFIDENCE = 0.80f
         private const val MIN_HAND_CONFIDENCE = 0.84f
+        private const val MAX_OBSERVATION_AGE_MS = 900L
     }
 }
