@@ -38,7 +38,7 @@ object ShizukuInput {
         if (!isReady() || running) return false
         val token = generation.get()
         running = true
-        Thread {
+        Thread({
             var success = false
             try {
                 if (generation.get() != token || !isReady()) return@Thread
@@ -51,7 +51,8 @@ object ShizukuInput {
                 if (generation.get() == token) {
                     success = process.waitFor() == 0
                 } else {
-                    process.destroy()
+                    // STOP may have arrived while Shizuku was creating the process.
+                    process.destroyForcibly()
                 }
             } catch (_: Exception) {
                 success = false
@@ -62,14 +63,14 @@ object ShizukuInput {
                     onComplete(success)
                 }
             }
-        }.start()
+        }, "ClashAI-Shizuku-Input").apply { isDaemon = true }.start()
         return true
     }
 
     @Synchronized
     fun cancelAll() {
         generation.incrementAndGet()
-        try { activeProcess?.destroy() } catch (_: Exception) { }
+        try { activeProcess?.destroyForcibly() } catch (_: Exception) { }
         activeProcess = null
         running = false
     }
