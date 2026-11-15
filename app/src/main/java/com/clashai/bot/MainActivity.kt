@@ -273,17 +273,17 @@ class MainActivity : Activity() {
         val slotCenters = floatArrayOf(340f, 540f, 740f, 950f)
         val slotX = (offsetX + slotCenters[slot] * scale).toInt()
         val slotY = (offsetY + 2170f * scale).toInt()
-        val targetLogicalX = (action.placementX ?: when (action.recommendedPlacement) {
-            "OPPONENT_LANE" -> 0.70f
-            else -> 0.50f
-        }) * 1080f
-        val targetLogicalY = (action.placementY ?: when (action.recommendedPlacement) {
-            "OPPONENT_LANE" -> 0.515f
-            "DEFENSIVE_CENTER" -> 0.645f
-            else -> 0.70f
-        }) * 2400f
-        val targetX = (offsetX + targetLogicalX * scale).toInt()
-        val targetY = (offsetY + targetLogicalY * scale).toInt()
+        // AI placements are normalized across the complete captured game frame.
+        // Do NOT map them through the old 1080x2400 portrait canvas: on a landscape
+        // tablet that compressed every arena target into the middle third of the screen.
+        val target = com.clashai.bot.input.ScreenCoordinateMapper.normalizedToPixel(
+            action.placementX ?: 0.50f,
+            action.placementY ?: 0.70f,
+            width,
+            height
+        )
+        val targetX = target.x
+        val targetY = target.y
         val sent = ShizukuInput.swipe(slotX, slotY, targetX, targetY, 220) { success ->
             runOnUiThread {
                 if (!autoplay) return@runOnUiThread
