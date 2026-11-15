@@ -31,6 +31,8 @@ class MainActivity : Activity() {
     private var latestObservation: ScreenObservation? = null
     private var lastPlayedAt = 0L
     private var lastPlayedCard: Card? = null
+    // A card cannot be replayed until the hand visibly cycles and that card returns.
+    private var cardAwaitingRotation: Card? = null
     private var receiverRegistered = false
     private val recentFrames = ArrayDeque<ScreenObservation>()
 
@@ -123,6 +125,8 @@ class MainActivity : Activity() {
         root.addView(button("START SCREEN ANALYSIS") { requestCapture() })
         root.addView(button("STOP SCREEN ANALYSIS") {
             stopAutoplay()
+            recentFrames.clear()
+            latestObservation = null
             startService(Intent(this, ScreenCaptureService::class.java).apply {
                 action = ScreenCaptureService.ACTION_STOP
             })
@@ -157,6 +161,10 @@ class MainActivity : Activity() {
         val first = frames.first()
         val last = frames.last()
         if (frames.any { it.capturedAtMs <= 0L || System.currentTimeMillis() - it.capturedAtMs > 900L }) return false
+        // Require three genuinely separate, ordered captures; duplicated/stale broadcasts do not count.
+        if (frames[1].capturedAtMs - frames[0].capturedAtMs !in 100L..600L) return false
+        if (frames[2].capturedAtMs - frames[1].capturedAtMs !in 100L..600L) return false
+        if (frames.last().capturedAtMs - frames.first().capturedAtMs < 300L) return false
         if (frames.any { !it.handComplete || it.handConfidence < 0.90f || it.visibleCards.size != 4 }) return false
         if (frames.any { it.visibleCards != first.visibleCards || it.enemyThreat != first.enemyThreat }) return false
         val elixirs = frames.mapNotNull { it.elixir }
@@ -176,11 +184,12 @@ class MainActivity : Activity() {
             status.text = "AUTOPLAY STOPPED"
             return
         }
-        status.text = "AUTOPLAY ACTIVE — ČEKAM SIGURNO OČITAVANJE"
-        latestObservation?.let { autoplayStep(it) }
+        status.text = "AUTOPLAY ACTIVE — ČEKAM 3 NOVA STABILNA OČITAVANJA"
     }
 
     private fun stopAutoplay() {
+        // STOP must invalidate and terminate an in-flight Shizuku input command.
+        ShizukuInput.cancelAll()
         autoplay = false
         if (::autoSwitch.isInitialized) autoSwitch.isChecked = false
         status.text = "AUTOPLAY STOPPED"
@@ -204,6 +213,14 @@ class MainActivity : Activity() {
             status.text = "WAIT: STALE SCREEN"
             return
         }
+        val awaiting = cardAwaitingRotation
+        if (awaiting != null) {
+            if (awaiting in observation.visibleCards) {
+                status.text = "WAIT: $awaiting JOŠ NIJE IZAŠAO IZ RUKE"
+                return
+            }
+            cardAwaitingRotation = null
+        }
         if (card == lastPlayedCard && now - lastPlayedAt < 1800L) return
         val slot = observation.visibleCards.indexOf(card)
         if (slot !in 0..3) return
@@ -223,6 +240,7 @@ class MainActivity : Activity() {
                 if (!autoplay) return@runOnUiThread
                 if (success) {
                     lastPlayedCard = card
+                    cardAwaitingRotation = card
                     lastPlayedAt = now
                     status.text = "AI PLAY SENT: ${card.displayName}"
                 } else {
