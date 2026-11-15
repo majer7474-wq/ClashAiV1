@@ -51,7 +51,9 @@ class OcrEngine {
             val bounds = line.boundingBox ?: continue
             val cx = bounds.exactCenterX() / width
             val cy = bounds.exactCenterY() / height
-            if (cx !in 0.05f..0.98f || cy !in 0.05f..0.99f) continue
+            // Ignore elixir-cost digits printed inside the card artwork; the
+            // actual elixir counter is on the bottom-most HUD line.
+            if (cx !in 0.05f..0.98f || cy !in 0.55f..0.99f) continue
 
             val raw = line.text.trim()
             val fraction = Regex("""(?<!\d)(10|[0-9])\s*/\s*10(?!\d)""").find(raw)
@@ -62,8 +64,13 @@ class OcrEngine {
         }
 
         val distinct = candidates.map { it.first }.distinct()
-        // Ambiguous or absent OCR is not an elixir reading; fail closed.
-        val value = distinct.singleOrNull()
+        // Prefer the lowest numeric line in the dedicated HUD crop. Card costs
+        // sit higher and are excluded; multiple OCR fragments at the same height
+        // remain ambiguous rather than being guessed.
+        val lowest = candidates.maxOfOrNull { it.second }
+        val bottomLine = candidates.filter { lowest != null && kotlin.math.abs(it.second - lowest) < 0.08f }
+        val value = bottomLine.map { it.first }.distinct().singleOrNull()
+            ?.takeIf { it in 0..10 }
         val confidence = if (value != null) 0.90f else 0f
         return OcrResult(result.text, value?.toFloat(), distinct, confidence)
     }
