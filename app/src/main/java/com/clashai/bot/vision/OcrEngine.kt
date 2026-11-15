@@ -18,12 +18,12 @@ class OcrEngine {
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
     fun analyze(bitmap: Bitmap): OcrResult {
-        // The elixir counter is in the lower-center HUD. Running ML Kit on the
-        // entire live frame wastes CPU and delays every subsequent AI decision.
-        val left = (bitmap.width * 0.30f).toInt().coerceIn(0, bitmap.width - 1)
-        val top = (bitmap.height * 0.84f).toInt().coerceIn(0, bitmap.height - 1)
-        val right = (bitmap.width * 0.70f).toInt().coerceIn(left + 1, bitmap.width)
-        val bottom = (bitmap.height * 0.998f).toInt().coerceIn(top + 1, bitmap.height)
+        // The player's elixir numeral sits to the left of the four card slots.
+        // The previous center crop mostly scanned card art and missed the counter.
+        val left = (bitmap.width * 0.02f).toInt().coerceIn(0, bitmap.width - 1)
+        val top = (bitmap.height * 0.76f).toInt().coerceIn(0, bitmap.height - 1)
+        val right = (bitmap.width * 0.27f).toInt().coerceIn(left + 1, bitmap.width)
+        val bottom = (bitmap.height * 0.995f).toInt().coerceIn(top + 1, bitmap.height)
         val hudCrop = try {
             Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
         } catch (_: Exception) {
@@ -51,7 +51,7 @@ class OcrEngine {
             val bounds = line.boundingBox ?: continue
             val cx = bounds.exactCenterX() / width
             val cy = bounds.exactCenterY() / height
-            if (cx !in 0.12f..0.90f || cy !in 0.30f..0.99f) continue
+            if (cx !in 0.05f..0.98f || cy !in 0.05f..0.99f) continue
 
             val raw = line.text.trim()
             val fraction = Regex("""(?<!\d)(10|[0-9])\s*/\s*10(?!\d)""").find(raw)
