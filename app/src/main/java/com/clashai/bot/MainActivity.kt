@@ -73,10 +73,10 @@ class MainActivity : Activity() {
             recentFrames.addLast(observation)
             while (recentFrames.size > 3) recentFrames.removeFirst()
             liveState.text = "ELIKSIR: ${observation.elixir?.toString() ?: "?"}/10" +
-                "\\nOCR: ${observation.detectedText.ifBlank { "NEMA TEKSTA" }.take(90)}" +
-                "\\nKARTE: " + if (observation.handComplete) cards.joinToString { it.displayName } else "NEPOTPUNO OČITAVANJE" +
-                "\\nHAND: ${observation.handDiagnostic}" +
-                "\\nPRIJETNJA: ${threat.name} | CONF: ${"%.2f".format(observation.handConfidence)}"
+                "\nOCR: ${observation.detectedText.ifBlank { "NEMA TEKSTA" }.take(90)}" +
+                "\nKARTE: " + (if (observation.handComplete) cards.joinToString { it.displayName } else "NEPOTPUNO OČITAVANJE") +
+                "\nHAND: ${observation.handDiagnostic}" +
+                "\nPRIJETNJA: ${threat.name} | CONF: ${"%.2f".format(observation.handConfidence)}"
             if (autoplay) {
                 if (hasStableConsensus()) autoplayStep(observation)
                 else status.text = "WAIT: VALIDATING 3 CONSECUTIVE FRAMES"
@@ -238,20 +238,27 @@ class MainActivity : Activity() {
         val slot = observation.visibleCards.indexOf(card)
         if (slot !in 0..3) return
 
-        val width = resources.displayMetrics.widthPixels
-        val height = resources.displayMetrics.heightPixels
-        val slotX = (width * (0.06f + (slot + 0.5f) * 0.22f)).toInt()
-        val slotY = (height * 0.90f).toInt()
-        val targetX = if (action.recommendedPlacement == "OPPONENT_LANE") {
-            (width * if (useRightHogLane) 0.73f else 0.27f).toInt()
-        } else {
-            (width * 0.50f).toInt()
-        }
-        val targetY = when (action.recommendedPlacement) {
-            "OPPONENT_LANE" -> (height * 0.54f).toInt()
-            "DEFENSIVE_CENTER" -> (height * 0.66f).toInt()
-            else -> (height * 0.70f).toInt()
-        }
+        // Match the exact hand ROIs used by HandCardRecognizer. The old
+        // equal-width 6%-94% formula tapped well left of the actual cards.
+        val metrics = android.util.DisplayMetrics()
+        @Suppress("DEPRECATION")
+        windowManager.defaultDisplay.getRealMetrics(metrics)
+        val width = metrics.widthPixels
+        val height = metrics.heightPixels
+        val scale = minOf(width / 1080f, height / 2400f)
+        val offsetX = (width - 1080f * scale) / 2f
+        val offsetY = (height - 2400f * scale) / 2f
+        val slotCenters = floatArrayOf(340f, 540f, 740f, 950f)
+        val slotX = (offsetX + slotCenters[slot] * scale).toInt()
+        val slotY = (offsetY + 2170f * scale).toInt()
+        val targetX = (offsetX + (if (action.recommendedPlacement == "OPPONENT_LANE") {
+            if (useRightHogLane) 790f else 290f
+        } else 540f) * scale).toInt()
+        val targetY = (offsetY + (when (action.recommendedPlacement) {
+            "OPPONENT_LANE" -> 1296f
+            "DEFENSIVE_CENTER" -> 1584f
+            else -> 1680f
+        }) * scale).toInt()
         val sent = ShizukuInput.swipe(slotX, slotY, targetX, targetY, 220) { success ->
             runOnUiThread {
                 if (!autoplay) return@runOnUiThread
