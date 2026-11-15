@@ -40,6 +40,12 @@ class MainActivity : Activity() {
     private val observationReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != ScreenCaptureService.ACTION_OBSERVATION) return
+            val captureError = intent.getStringExtra(ScreenCaptureService.EXTRA_ERROR)
+            if (!captureError.isNullOrBlank()) {
+                status.text = "SCREEN ANALYSIS ERROR: $captureError"
+                liveState.text = "ANALIZA NIJE POKRENUTA. PROVJERI MODEL I ASSET DATOTEKE."
+                return
+            }
             val elixirValue = intent.getFloatExtra(ScreenCaptureService.EXTRA_ELIXIR, -1f)
             val handNames = intent.getStringExtra(ScreenCaptureService.EXTRA_HAND_CARDS).orEmpty()
             val cards = handNames.split(",").mapNotNull { name ->
