@@ -65,14 +65,18 @@ class MainActivity : Activity() {
                 capturedAtMs = capturedAt,
                 handConfidence = intent.getFloatExtra(ScreenCaptureService.EXTRA_HAND_CONFIDENCE, 0f),
                 handComplete = intent.getBooleanExtra(ScreenCaptureService.EXTRA_HAND_COMPLETE, false),
-                detectedCardIds = emptyList()
+                detectedCardIds = emptyList(),
+                detectedText = intent.getStringExtra(ScreenCaptureService.EXTRA_OCR_TEXT).orEmpty(),
+                handDiagnostic = intent.getStringExtra(ScreenCaptureService.EXTRA_HAND_DIAGNOSTIC).orEmpty()
             )
             latestObservation = observation
             recentFrames.addLast(observation)
             while (recentFrames.size > 3) recentFrames.removeFirst()
-            liveState.text = "ELIKSIR: ${observation.elixir?.toString() ?: "?"}/10\n" +
-                "KARTE: " + if (observation.handComplete) cards.joinToString { it.displayName } else "NEPOTPUNO OČITAVANJE" +
-                "\nPRIJETNJA: ${threat.name} | HAND CONF: ${"%.2f".format(observation.handConfidence)}"
+            liveState.text = "ELIKSIR: ${observation.elixir?.toString() ?: "?"}/10" +
+                "\\nOCR: ${observation.detectedText.ifBlank { "NEMA TEKSTA" }.take(90)}" +
+                "\\nKARTE: " + if (observation.handComplete) cards.joinToString { it.displayName } else "NEPOTPUNO OČITAVANJE" +
+                "\\nHAND: ${observation.handDiagnostic}" +
+                "\\nPRIJETNJA: ${threat.name} | CONF: ${"%.2f".format(observation.handConfidence)}"
             if (autoplay) {
                 if (hasStableConsensus()) autoplayStep(observation)
                 else status.text = "WAIT: VALIDATING 3 CONSECUTIVE FRAMES"
