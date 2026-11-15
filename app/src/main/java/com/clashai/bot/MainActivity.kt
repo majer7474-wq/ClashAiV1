@@ -239,6 +239,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 if (!autoplay) return@runOnUiThread
                 if (success) {
+                    ai.recordPlayed(card)
                     lastPlayedCard = card
                     cardAwaitingRotation = card
                     lastPlayedAt = now
