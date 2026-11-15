@@ -51,7 +51,7 @@ class AIController {
     )
 
     companion object {
-        private const val MIN_HAND_CONFIDENCE = 0.84f
+        private const val MIN_HAND_CONFIDENCE = 0.76f
         private const val MAX_OBSERVATION_AGE_MS = 900L
     }
 }
