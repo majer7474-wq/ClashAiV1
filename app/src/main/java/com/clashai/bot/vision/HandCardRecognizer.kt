@@ -39,17 +39,19 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
         // preview and shifted every real hand card substantially left.
         val slotLeft = floatArrayOf(230f, 430f, 630f, 840f)
         val slotRight = floatArrayOf(450f, 650f, 850f, 1060f)
-        val referenceWidth = 1080f
-        val top = 2020f / 2400f
-        val bottom = 2320f / 2400f
+        // Keep the reference game's 1080x2400 aspect ratio. Independent X/Y
+        // scaling crops the wrong cards on tablets with letterboxed game view.
+        val scale = minOf(frame.width / 1080f, frame.height / 2400f)
+        val offsetX = (frame.width - 1080f * scale) / 2f
+        val offsetY = (frame.height - 2400f * scale) / 2f
         val matches = mutableListOf<Match>()
         val slotDiagnostics = mutableListOf<String>()
 
         for (slot in 0..3) {
-            val x0 = (frame.width * (slotLeft[slot] / referenceWidth)).toInt().coerceIn(0, frame.width - 1)
-            val x1 = (frame.width * (slotRight[slot] / referenceWidth)).toInt().coerceIn(x0 + 1, frame.width)
-            val y0 = (frame.height * top).toInt().coerceIn(0, frame.height - 1)
-            val y1 = (frame.height * bottom).toInt().coerceIn(y0 + 1, frame.height)
+            val x0 = (offsetX + slotLeft[slot] * scale).toInt().coerceIn(0, frame.width - 1)
+            val x1 = (offsetX + slotRight[slot] * scale).toInt().coerceIn(x0 + 1, frame.width)
+            val y0 = (offsetY + 2020f * scale).toInt().coerceIn(0, frame.height - 1)
+            val y1 = (offsetY + 2320f * scale).toInt().coerceIn(y0 + 1, frame.height)
             if (x1 <= x0 || y1 <= y0) return Result(emptyList(), emptyList(), 0f, false)
 
             val crop = runCatching {
