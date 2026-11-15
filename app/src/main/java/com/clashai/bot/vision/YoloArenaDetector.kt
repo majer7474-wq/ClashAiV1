@@ -2,6 +2,7 @@ package com.clashai.bot.vision
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
@@ -54,7 +55,29 @@ class YoloArenaDetector(context: Context) : AutoCloseable {
 
     init {
         val model = context.assets.open("best.onnx").use { it.readBytes() }
-        session = environment.createSession(model)
+        val options = OrtSession.SessionOptions()
+        var nnapiRequested = false
+        try {
+            // Use Android NNAPI where the device driver supports the graph.
+            // Reflection keeps compatibility with ONNX Runtime builds that omit
+            // the NNAPI method; unsupported operators are delegated by ORT.
+            nnapiRequested = runCatching {
+                options.javaClass.getMethod("addNnapi").invoke(options)
+                true
+            }.getOrDefault(false)
+            session = try {
+                environment.createSession(model, options).also {
+                    Log.i("ClashAI", if (nnapiRequested) "YOLO backend: NNAPI requested (Snapdragon/Android)" else "YOLO backend: CPU")
+                }
+            } catch (acceleratedError: Exception) {
+                Log.w("ClashAI", "NNAPI session failed; falling back to CPU", acceleratedError)
+                environment.createSession(model).also {
+                    Log.i("ClashAI", "YOLO backend: CPU fallback")
+                }
+            }
+        } finally {
+            options.close()
+        }
     }
 
     fun detect(source: Bitmap): List<ArenaDetection> {
