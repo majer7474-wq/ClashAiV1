@@ -181,8 +181,10 @@ class MainActivity : Activity() {
         // Requiring an identical threat label blocked autoplay whenever YOLO flickered.
         if (frames.any { it.visibleCards != first.visibleCards }) return false
         val elixirs = frames.mapNotNull { it.elixir }
-        if (elixirs.size != 3 || elixirs.any { it !in 0f..10f }) return false
-        if (elixirs.maxOrNull()!! - elixirs.minOrNull()!! > 0.75f) return false
+        // One OCR miss should not invalidate otherwise stable frames; the AI
+        // controller extrapolates briefly from the last confirmed reading.
+        if (elixirs.size < 2 || elixirs.any { it !in 0f..10f }) return false
+        if (elixirs.maxOrNull()!! - elixirs.minOrNull()!! > 0.90f) return false
         return last.capturedAtMs >= first.capturedAtMs
     }
 
