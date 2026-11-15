@@ -20,7 +20,7 @@
                 android:value="true" />
         </provider>
 
-        <activity
+        <activity android:name=".SimulatorActivity" android:exported="false" />\n\n        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
