@@ -65,7 +65,9 @@ class FrameAnalyzer(context: Context) : AutoCloseable {
         val swarm = setOf("skeleton", "bat", "goblin", "spear-goblin", "minion", "skeleton-army-evolution")
         val tanks = setOf("giant", "golem", "pekka", "mega-knight", "electro-giant", "lava-hound", "royal-giant")
         return when {
-            labels.any { it in highDanger } -> Threat.HIGH_DANGER
+            // Air win conditions must not be classified as generic high danger:
+            // Hog 2.6 must answer Balloon/Lava Hound with Musketeer, not Cannon.
+            labels.any { it in highDanger && it !in air } -> Threat.HIGH_DANGER
             labels.any { it in air } -> Threat.AIR
             labels.any { it in swarm } -> Threat.SWARM
             labels.any { it in tanks } -> Threat.TANK
