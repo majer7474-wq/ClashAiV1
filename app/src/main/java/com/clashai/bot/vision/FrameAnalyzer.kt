@@ -15,7 +15,8 @@ data class ScreenObservation(
     val capturedAtMs: Long = System.currentTimeMillis(),
     val handConfidence: Float = 0f,
     val handComplete: Boolean = false,
-    val detectedCardIds: List<String> = emptyList()
+    val detectedCardIds: List<String> = emptyList(),
+    val handDiagnostic: String = ""
 )
 
 class FrameAnalyzer(context: Context) : AutoCloseable {
@@ -53,7 +54,8 @@ class FrameAnalyzer(context: Context) : AutoCloseable {
             detections = detections,
             handConfidence = handResult.confidence,
             handComplete = handResult.complete,
-            detectedCardIds = handResult.cardIds
+            detectedCardIds = handResult.cardIds,
+            handDiagnostic = handResult.diagnostic
         )
     }
 
