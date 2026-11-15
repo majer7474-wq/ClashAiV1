@@ -19,8 +19,8 @@ class AIController {
             return noAction("Vision confidence too low; waiting for a clearer frame")
         }
 
-        if (hand.isEmpty()) {
-            return noAction("Player hand not detected; no card will be played")
+        if (!observation.handComplete || observation.handConfidence < MIN_HAND_CONFIDENCE || hand.size != 4) {
+            return noAction("Hand recognition incomplete or uncertain; no card will be played")
         }
 
         if (elixir == null || elixir !in 0f..10f) {
@@ -85,5 +85,6 @@ class AIController {
 
     companion object {
         private const val MIN_CONFIDENCE = 0.80f
+        private const val MIN_HAND_CONFIDENCE = 0.84f
     }
 }
