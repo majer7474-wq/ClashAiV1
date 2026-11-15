@@ -51,7 +51,7 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
                 Bitmap.createBitmap(frame, x0, y0, x1 - x0, y1 - y0)
             }.getOrNull() ?: return Result(emptyList(), emptyList(), 0f, false)
 
-            val query = try { fingerprint(crop) } finally { crop.recycle() }
+            val query = try { fingerprintLiveCrop(crop) } finally { crop.recycle() }
 
             // Only accept cards belonging to the active Hog 2.6 deck. This prevents
             // a visually similar unrelated card from being silently substituted.
@@ -95,6 +95,15 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
         }
     }
 
+    private fun fingerprintLiveCrop(source: Bitmap): Fingerprint {
+        // Match the same inner artwork window used for reference templates.
+        val left = (source.width * 0.10f).toInt().coerceIn(0, source.width - 1)
+        val top = (source.height * 0.05f).toInt().coerceIn(0, source.height - 1)
+        val right = (source.width * 0.90f).toInt().coerceIn(left + 1, source.width)
+        val bottom = (source.height * 0.78f).toInt().coerceIn(top + 1, source.height)
+        val crop = Bitmap.createBitmap(source, left, top, right - left, bottom - top)
+        return try { fingerprint(crop) } finally { crop.recycle() }
+    }
     private fun fingerprintTemplate(source: Bitmap): Fingerprint {
         // Apply the same inner-window normalization to live crops and templates.
         val left = (source.width * 0.10f).toInt().coerceIn(0, source.width - 1)
