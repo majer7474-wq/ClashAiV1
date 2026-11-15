@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong
  */
 object ShizukuInput {
     private val generation = AtomicLong(0)
-    @Volatile private var activeProcess: android.os.Process? = null
+    @Volatile private var activeProcess: java.lang.Process? = null
     @Volatile private var running = false
 
     fun isReady(): Boolean = try {
@@ -56,9 +56,11 @@ object ShizukuInput {
             } catch (_: Exception) {
                 success = false
             } finally {
-                activeProcess = null
-                running = false
-                if (generation.get() == token) onComplete(success)
+                if (generation.get() == token) {
+                    activeProcess = null
+                    running = false
+                    onComplete(success)
+                }
             }
         }.start()
         return true
