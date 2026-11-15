@@ -30,6 +30,10 @@ class ScreenCaptureService : Service() {
         const val EXTRA_CONFIDENCE = "observation_confidence"
         const val EXTRA_DETECTION_COUNT = "observation_detection_count"
         const val EXTRA_CAPTURED_AT = "observation_captured_at"
+        const val EXTRA_HAND_CARDS = "observation_hand_cards"
+        const val EXTRA_HAND_COMPLETE = "observation_hand_complete"
+        const val EXTRA_HAND_CONFIDENCE = "observation_hand_confidence"
+        const val EXTRA_ELIXIR_CONFIDENCE = "observation_elixir_confidence"
     }
 
     private var projection: MediaProjection? = null
@@ -195,6 +199,10 @@ class ScreenCaptureService : Service() {
                 putExtra(EXTRA_CONFIDENCE, observation.confidence)
                 putExtra(EXTRA_DETECTION_COUNT, observation.detections.size)
                 putExtra(EXTRA_CAPTURED_AT, observation.capturedAtMs)
+                putExtra(EXTRA_HAND_CARDS, observation.visibleCards.joinToString(",") { it.name })
+                putExtra(EXTRA_HAND_COMPLETE, observation.handComplete)
+                putExtra(EXTRA_HAND_CONFIDENCE, observation.handConfidence)
+                putExtra(EXTRA_ELIXIR_CONFIDENCE, if (observation.elixir != null) 0.75f else 0f)
             })
 
             cropped.recycle()
