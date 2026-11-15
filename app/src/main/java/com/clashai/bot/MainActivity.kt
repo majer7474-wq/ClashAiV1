@@ -306,7 +306,7 @@ class MainActivity : Activity() {
             return
         }
         val slotCenters = floatArrayOf(340f, 540f, 740f, 950f)
-        val slot = viewport.mapPoint(slotCenters[slot], 2170f) ?: run {
+        val slotPoint = viewport.mapPoint(slotCenters[slot], 2170f) ?: run {
             stopAutoplay()
             status.text = "AUTOPLAY STOPPED: CARD SLOT OUTSIDE GAME VIEW"
             return
@@ -319,8 +319,8 @@ class MainActivity : Activity() {
             status.text = "AUTOPLAY STOPPED: TARGET OUTSIDE GAME VIEW"
             return
         }
-        val slotX = slot.x
-        val slotY = slot.y
+        val slotX = slotPoint.x
+        val slotY = slotPoint.y
         val targetX = target.x
         val targetY = target.y
         val sent = ShizukuInput.swipe(slotX, slotY, targetX, targetY, 220) { success ->
