@@ -49,7 +49,7 @@ class Hog26Engine {
                 Card.LOG,
                 "Obrana protiv swarm jedinica",
                 100,
-                "Putanja protivničkih jedinica"
+                "OPPONENT_LANE"
             )
         }
 
@@ -60,7 +60,7 @@ class Hog26Engine {
                     Card.CANNON,
                     "Povlačenje tanka u sredinu",
                     95,
-                    "Središte arene"
+                    "DEFENSIVE_CENTER"
                 )
             }
 
@@ -69,7 +69,7 @@ class Hog26Engine {
                     Card.MUSKETEER,
                     "Podrška obrani protiv tanka",
                     90,
-                    "Iza vlastite kule"
+                    "DEFENSIVE_BACK"
                 )
             }
         }
@@ -82,7 +82,7 @@ class Hog26Engine {
                 Card.MUSKETEER,
                 "Protuzračna obrana",
                 95,
-                "Iza vlastite kule"
+                "DEFENSIVE_BACK"
             )
         }
 
@@ -94,7 +94,7 @@ class Hog26Engine {
                 Card.CANNON,
                 "Zaustavljanje protivničkog win conditiona",
                 90,
-                "Središte arene"
+                "DEFENSIVE_CENTER"
             )
         }
 
@@ -108,7 +108,7 @@ class Hog26Engine {
                     Card.HOG_RIDER,
                     "Hog Rider napad",
                     80,
-                    "Most prema protivničkoj kuli"
+                    "OPPONENT_LANE"
                 )
             }
         }
@@ -125,7 +125,7 @@ class Hog26Engine {
                 cycleCard,
                 "Cikliranje karata",
                 50,
-                "Sigurna pozicija"
+                "SAFE_CYCLE"
             )
         }
 
@@ -137,7 +137,7 @@ class Hog26Engine {
                 Card.FIREBALL,
                 "Fireball protiv grupiranih jedinica",
                 70,
-                "Grupa protivničkih jedinica"
+                "ENEMY_GROUP"
             )
         }
 
@@ -167,7 +167,7 @@ class Hog26Engine {
                 selected,
                 reason,
                 100,
-                "Obrambena pozicija"
+                "DEFENSIVE_CENTER"
             )
         } else {
             wait("Nema odgovarajuće obrambene karte")
@@ -190,6 +190,6 @@ class Hog26Engine {
         null,
         reason,
         0,
-        "Bez poteza"
+        "NONE"
     )
 }
