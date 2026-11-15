@@ -32,21 +32,24 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
             return Result(emptyList(), emptyList(), 0f, false, "FRAME/CATALOG INVALID: ${frame.width}x${frame.height}, templates=${templateFingerprints.size}")
         }
 
-        // Four card centres in the standard portrait hand: ~17%, 39%, 61%, 83%.
-        // The old 24.5%-92.5% span started inside slot 2 and shifted every crop.
-        val left = 0.06f
-        val right = 0.94f
-        val top = 0.815f
-        val bottom = 0.975f
-        val slotWidth = (right - left) / 4f
+        // Calibrated from the public CR-Bot 1080x2400 hand ROIs:
+        // (230,2020,220,300), (430,2020,220,300),
+        // (630,2020,220,300), (840,2020,220,300).
+        // The previous equal-width 6%-94% split included the next-card
+        // preview and shifted every real hand card substantially left.
+        val slotLeft = floatArrayOf(230f, 430f, 630f, 840f)
+        val slotRight = floatArrayOf(450f, 650f, 850f, 1060f)
+        val referenceWidth = 1080f
+        val top = 2020f / 2400f
+        val bottom = 2320f / 2400f
         val matches = mutableListOf<Match>()
         val slotDiagnostics = mutableListOf<String>()
 
         for (slot in 0..3) {
-            val x0 = (frame.width * (left + slot * slotWidth + slotWidth * 0.10f)).toInt()
-            val x1 = (frame.width * (left + (slot + 1) * slotWidth - slotWidth * 0.10f)).toInt()
-            val y0 = (frame.height * (top + (bottom - top) * 0.04f)).toInt()
-            val y1 = (frame.height * (top + (bottom - top) * 0.78f)).toInt()
+            val x0 = (frame.width * (slotLeft[slot] / referenceWidth)).toInt().coerceIn(0, frame.width - 1)
+            val x1 = (frame.width * (slotRight[slot] / referenceWidth)).toInt().coerceIn(x0 + 1, frame.width)
+            val y0 = (frame.height * top).toInt().coerceIn(0, frame.height - 1)
+            val y1 = (frame.height * bottom).toInt().coerceIn(y0 + 1, frame.height)
             if (x1 <= x0 || y1 <= y0) return Result(emptyList(), emptyList(), 0f, false)
 
             val crop = runCatching {
@@ -67,7 +70,7 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
             val differentCardRunnerUp = ranked.drop(1).firstOrNull { it.card != best.card }
             val margin = best.score - (differentCardRunnerUp?.score ?: 0f)
 
-            slotDiagnostics += "S${slot + 1}:${best.id}=${"%.2f".format(java.util.Locale.US, best.score)} Δ=${"%.3f".format(java.util.Locale.US, margin)}"
+            slotDiagnostics += "S${slot + 1}[${x0},${y0}-${x1},${y1}]:${best.id}=${"%.2f".format(java.util.Locale.US, best.score)} Δ=${"%.3f".format(java.util.Locale.US, margin)}"
             if (best.score < MIN_SCORE || margin < MIN_MARGIN) {
                 return Result(emptyList(), matches.map { it.id }, best.score, false,
                     slotDiagnostics.joinToString(" | ") + " | REJECTED (need score $MIN_SCORE, margin $MIN_MARGIN)")
