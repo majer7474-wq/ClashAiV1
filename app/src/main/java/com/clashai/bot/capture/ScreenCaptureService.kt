@@ -24,6 +24,12 @@ class ScreenCaptureService : Service() {
         private const val CHANNEL = "clashai_capture"
         private const val NOTIFICATION_ID = 701
         private const val TAG = "ClashAI"
+        const val ACTION_OBSERVATION = "com.clashai.bot.OBSERVATION"
+        const val EXTRA_ELIXIR = "observation_elixir"
+        const val EXTRA_THREAT = "observation_threat"
+        const val EXTRA_CONFIDENCE = "observation_confidence"
+        const val EXTRA_DETECTION_COUNT = "observation_detection_count"
+        const val EXTRA_CAPTURED_AT = "observation_captured_at"
     }
 
     private var projection: MediaProjection? = null
@@ -32,7 +38,8 @@ class ScreenCaptureService : Service() {
     private var thread: HandlerThread? = null
     private var handler: Handler? = null
 
-    private val analyzer = FrameAnalyzer()
+    private lateinit var analyzer: FrameAnalyzer
+    private var lastInferenceAt = 0L
 
     override fun onBind(intent: Intent?) = null
 
@@ -83,6 +90,7 @@ class ScreenCaptureService : Service() {
 
     private fun startCapture(resultCode: Int, data: Intent) {
         try {
+            analyzer = FrameAnalyzer(this)
             val manager =
                 getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
 
@@ -138,6 +146,12 @@ class ScreenCaptureService : Service() {
 
     private fun processFrame(source: ImageReader) {
         val image = source.acquireLatestImage() ?: return
+        val now = System.currentTimeMillis()
+        if (now - lastInferenceAt < 250L) {
+            image.close()
+            return
+        }
+        lastInferenceAt = now
 
         try {
             val plane = image.planes[0]
@@ -170,10 +184,18 @@ class ScreenCaptureService : Service() {
 
             Log.d(
                 TAG,
-                "Frame ${width}x${height} | " +
-                "Brightness=${metrics.brightness} | " +
-                "Confidence=${observation.confidence}"
+                "Frame ${width}x${height} | Brightness=${metrics.brightness} | " +
+                    "Detections=${observation.detections.size} | " +
+                    "Threat=${observation.enemyThreat} | Confidence=${observation.confidence}"
             )
+            sendBroadcast(Intent(ACTION_OBSERVATION).apply {
+                setPackage(packageName)
+                putExtra(EXTRA_ELIXIR, observation.elixir ?: -1f)
+                putExtra(EXTRA_THREAT, observation.enemyThreat.name)
+                putExtra(EXTRA_CONFIDENCE, observation.confidence)
+                putExtra(EXTRA_DETECTION_COUNT, observation.detections.size)
+                putExtra(EXTRA_CAPTURED_AT, observation.capturedAtMs)
+            })
 
             cropped.recycle()
             bitmap.recycle()
@@ -209,6 +231,9 @@ class ScreenCaptureService : Service() {
             projection?.stop()
             projection = null
 
+            if (::analyzer.isInitialized) {
+                analyzer.close()
+            }
             thread?.quitSafely()
             thread = null
             handler = null
