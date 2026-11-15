@@ -15,7 +15,8 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
         val cards: List<Card>,
         val cardIds: List<String>,
         val confidence: Float,
-        val complete: Boolean
+        val complete: Boolean,
+        val diagnostic: String = ""
     )
 
     private data class Fingerprint(val gray: FloatArray, val color: FloatArray)
@@ -28,7 +29,7 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
 
     fun recognize(frame: Bitmap): Result {
         if (frame.width < 300 || frame.height < 500 || templateFingerprints.size < 100) {
-            return Result(emptyList(), emptyList(), 0f, false)
+            return Result(emptyList(), emptyList(), 0f, false, "FRAME/CATALOG INVALID: ${frame.width}x${frame.height}, templates=${templateFingerprints.size}")
         }
 
         // Four card centres in the standard portrait hand: ~17%, 39%, 61%, 83%.
@@ -39,6 +40,7 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
         val bottom = 0.975f
         val slotWidth = (right - left) / 4f
         val matches = mutableListOf<Match>()
+        val slotDiagnostics = mutableListOf<String>()
 
         for (slot in 0..3) {
             val x0 = (frame.width * (left + slot * slotWidth + slotWidth * 0.10f)).toInt()
@@ -61,19 +63,21 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
             }.sortedByDescending { it.score }
 
             val best = ranked.firstOrNull()
-                ?: return Result(emptyList(), emptyList(), 0f, false)
+                ?: return Result(emptyList(), emptyList(), 0f, false, "SLOT $slot: no Hog 2.6 template candidate; total templates=${templateFingerprints.size}")
             val differentCardRunnerUp = ranked.drop(1).firstOrNull { it.card != best.card }
             val margin = best.score - (differentCardRunnerUp?.score ?: 0f)
 
+            slotDiagnostics += "S${slot + 1}:${best.id}=${"%.2f".format(java.util.Locale.US, best.score)} Δ=${"%.3f".format(java.util.Locale.US, margin)}"
             if (best.score < MIN_SCORE || margin < MIN_MARGIN) {
-                return Result(emptyList(), matches.map { it.id }, minOf(best.score, MIN_SCORE), false)
+                return Result(emptyList(), matches.map { it.id }, best.score, false,
+                    slotDiagnostics.joinToString(" | ") + " | REJECTED (need score $MIN_SCORE, margin $MIN_MARGIN)")
             }
             matches += best
         }
 
         val cards = matches.map { it.card }
         val confidence = matches.minOfOrNull { it.score } ?: 0f
-        return Result(cards, matches.map { it.id }, confidence, cards.size == 4 && cards.distinct().size == 4)
+        return Result(cards, matches.map { it.id }, confidence, cards.size == 4 && cards.distinct().size == 4, slotDiagnostics.joinToString(" | "))
     }
 
     private fun cardForAsset(rawId: String): Card? {
