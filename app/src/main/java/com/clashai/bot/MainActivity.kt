@@ -130,6 +130,7 @@ class MainActivity : Activity() {
         }
         root.addView(title)
         root.addView(status)
+        root.addView(button("OPEN LIVE MIRROR SIMULATOR") { startActivity(Intent(this, SimulatorActivity::class.java)) })
         root.addView(heading("LIVE GAME STATE"))
         root.addView(liveState)
         root.addView(heading("SCREEN ANALYSIS"))
