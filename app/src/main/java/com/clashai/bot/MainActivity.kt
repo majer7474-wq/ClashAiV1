@@ -160,11 +160,11 @@ class MainActivity : Activity() {
         val frames = recentFrames.toList()
         val first = frames.first()
         val last = frames.last()
-        if (frames.any { it.capturedAtMs <= 0L || System.currentTimeMillis() - it.capturedAtMs > 900L }) return false
+        if (frames.any { it.capturedAtMs <= 0L || System.currentTimeMillis() - it.capturedAtMs > 3500L }) return false
         // Require three genuinely separate, ordered captures; duplicated/stale broadcasts do not count.
-        if (frames[1].capturedAtMs - frames[0].capturedAtMs !in 100L..600L) return false
-        if (frames[2].capturedAtMs - frames[1].capturedAtMs !in 100L..600L) return false
-        if (frames.last().capturedAtMs - frames.first().capturedAtMs < 300L) return false
+        if (frames[1].capturedAtMs - frames[0].capturedAtMs !in 150L..3000L) return false
+        if (frames[2].capturedAtMs - frames[1].capturedAtMs !in 150L..3000L) return false
+        if (frames.last().capturedAtMs - frames.first().capturedAtMs < 400L) return false
         if (frames.any { !it.handComplete || it.handConfidence < 0.90f || it.visibleCards.size != 4 }) return false
         if (frames.any { it.visibleCards != first.visibleCards || it.enemyThreat != first.enemyThreat }) return false
         val elixirs = frames.mapNotNull { it.elixir }
