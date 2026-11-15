@@ -7,6 +7,7 @@ import android.os.Looper
 import android.graphics.Color
 import android.view.Gravity
 import android.widget.*
+import java.util.ArrayDeque
 import android.content.Intent
 import android.content.Context
 import android.content.BroadcastReceiver
@@ -31,6 +32,7 @@ class MainActivity : Activity() {
     private var lastPlayedAt = 0L
     private var lastPlayedCard: Card? = null
     private var receiverRegistered = false
+    private val recentFrames = ArrayDeque<ScreenObservation>()
 
     private val observationReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -57,10 +59,15 @@ class MainActivity : Activity() {
                 detectedCardIds = emptyList()
             )
             latestObservation = observation
+            recentFrames.addLast(observation)
+            while (recentFrames.size > 3) recentFrames.removeFirst()
             liveState.text = "ELIKSIR: ${observation.elixir?.toString() ?: "?"}/10\n" +
                 "KARTE: " + if (observation.handComplete) cards.joinToString { it.displayName } else "NEPOTPUNO OČITAVANJE" +
                 "\nPRIJETNJA: ${threat.name} | HAND CONF: ${"%.2f".format(observation.handConfidence)}"
-            if (autoplay) autoplayStep(observation)
+            if (autoplay) {
+                if (hasStableConsensus()) autoplayStep(observation)
+                else status.text = "WAIT: VALIDATING 3 CONSECUTIVE FRAMES"
+            }
         }
     }
 
@@ -142,6 +149,20 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(observationReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         else @Suppress("DEPRECATION") registerReceiver(observationReceiver, filter)
         receiverRegistered = true
+    }
+
+    private fun hasStableConsensus(): Boolean {
+        if (recentFrames.size < 3) return false
+        val frames = recentFrames.toList()
+        val first = frames.first()
+        val last = frames.last()
+        if (frames.any { it.capturedAtMs <= 0L || System.currentTimeMillis() - it.capturedAtMs > 900L }) return false
+        if (frames.any { !it.handComplete || it.handConfidence < 0.90f || it.visibleCards.size != 4 }) return false
+        if (frames.any { it.visibleCards != first.visibleCards || it.enemyThreat != first.enemyThreat }) return false
+        val elixirs = frames.mapNotNull { it.elixir }
+        if (elixirs.size != 3 || elixirs.any { it !in 0f..10f }) return false
+        if (elixirs.maxOrNull()!! - elixirs.minOrNull()!! > 0.75f) return false
+        return last.capturedAtMs >= first.capturedAtMs
     }
 
     private fun setAutoplay(enabled: Boolean) {
