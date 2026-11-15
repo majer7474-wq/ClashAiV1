@@ -8,9 +8,10 @@ import java.io.Closeable
 /**
  * Loads the bundled card-art reference set.
  *
- * The build workflow downloads the MIT-licensed reference images and keeps
- * their license beside them. Missing/corrupt files are skipped; callers must
- * treat an empty or incomplete catalog as "unknown", never as a card match.
+ * The build workflow packages reference images from the upstream repository and
+ * includes its source notice and README. This project is not affiliated with
+ * Supercell. Missing/corrupt files are skipped; callers must treat an empty or
+ * incomplete catalog as "unknown", never as a card match.
  */
 class CardTemplateCatalog(context: Context) : Closeable {
     data class Template(val id: String, val bitmap: Bitmap)
