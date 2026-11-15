@@ -18,12 +18,12 @@ class OcrEngine {
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
     fun analyze(bitmap: Bitmap): OcrResult {
-        // The player's elixir numeral sits to the left of the four card slots.
-        // The previous center crop mostly scanned card art and missed the counter.
-        val left = (bitmap.width * 0.02f).toInt().coerceIn(0, bitmap.width - 1)
-        val top = (bitmap.height * 0.76f).toInt().coerceIn(0, bitmap.height - 1)
-        val right = (bitmap.width * 0.27f).toInt().coerceIn(left + 1, bitmap.width)
-        val bottom = (bitmap.height * 0.995f).toInt().coerceIn(top + 1, bitmap.height)
+        // The elixir counter and purple meter are in the lower-centre HUD,
+        // directly below the card row. Do not OCR the lower-left emote/next-card area.
+        val left = (bitmap.width * 0.30f).toInt().coerceIn(0, bitmap.width - 1)
+        val top = (bitmap.height * 0.84f).toInt().coerceIn(0, bitmap.height - 1)
+        val right = (bitmap.width * 0.70f).toInt().coerceIn(left + 1, bitmap.width)
+        val bottom = (bitmap.height * 0.998f).toInt().coerceIn(top + 1, bitmap.height)
         val hudCrop = try {
             Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
         } catch (_: Exception) {
