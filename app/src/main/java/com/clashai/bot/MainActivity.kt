@@ -236,7 +236,7 @@ class MainActivity : Activity() {
 
         val width = resources.displayMetrics.widthPixels
         val height = resources.displayMetrics.heightPixels
-        val slotX = (width * (0.245f + (slot + 0.5f) * 0.17f)).toInt()
+        val slotX = (width * (0.06f + (slot + 0.5f) * 0.22f)).toInt()
         val slotY = (height * 0.90f).toInt()
         val targetX = if (action.recommendedPlacement == "OPPONENT_LANE") {
             (width * if (useRightHogLane) 0.73f else 0.27f).toInt()
