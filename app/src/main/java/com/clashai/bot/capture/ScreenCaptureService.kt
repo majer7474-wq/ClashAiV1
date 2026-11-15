@@ -37,6 +37,9 @@ class ScreenCaptureService : Service() {
         const val EXTRA_ERROR = "observation_error"
         const val EXTRA_OCR_TEXT = "observation_ocr_text"
         const val EXTRA_HAND_DIAGNOSTIC = "observation_hand_diagnostic"
+        const val EXTRA_DETECTIONS = "observation_detections"
+        const val EXTRA_FRAME_WIDTH = "observation_frame_width"
+        const val EXTRA_FRAME_HEIGHT = "observation_frame_height"
     }
 
     private var projection: MediaProjection? = null
@@ -216,6 +219,11 @@ class ScreenCaptureService : Service() {
                 putExtra(EXTRA_HAND_CONFIDENCE, observation.handConfidence)
                 putExtra(EXTRA_OCR_TEXT, observation.detectedText)
                 putExtra(EXTRA_HAND_DIAGNOSTIC, observation.handDiagnostic)
+                putExtra(EXTRA_FRAME_WIDTH, width)
+                putExtra(EXTRA_FRAME_HEIGHT, height)
+                putExtra(EXTRA_DETECTIONS, observation.detections.joinToString(";") {
+                    "${it.label},${it.centerX},${it.centerY},${it.confidence}"
+                })
                 putExtra(EXTRA_ELIXIR_CONFIDENCE, if (observation.elixir != null) 0.75f else 0f)
             })
 

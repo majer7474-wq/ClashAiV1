@@ -20,6 +20,7 @@ import com.clashai.bot.ai.Threat
 import com.clashai.bot.capture.ScreenCaptureService
 import com.clashai.bot.input.ShizukuInput
 import com.clashai.bot.vision.ScreenObservation
+import com.clashai.bot.vision.ArenaDetection
 
 class MainActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
@@ -57,6 +58,21 @@ class MainActivity : Activity() {
             val capturedAt = intent.getLongExtra(
                 ScreenCaptureService.EXTRA_CAPTURED_AT, System.currentTimeMillis()
             )
+            val detectionData = intent.getStringExtra(ScreenCaptureService.EXTRA_DETECTIONS).orEmpty()
+            val detections = detectionData.split(";").mapNotNull { item ->
+                val parts = item.split(",")
+                if (parts.size != 4) null else runCatching {
+                    ArenaDetection(
+                        classId = -1,
+                        label = parts[0],
+                        confidence = parts[3].toFloat(),
+                        centerX = parts[1].toFloat(),
+                        centerY = parts[2].toFloat(),
+                        width = 0f,
+                        height = 0f
+                    )
+                }.getOrNull()
+            }
             val observation = ScreenObservation(
                 elixir = elixirValue.takeIf { it in 0f..10f },
                 visibleCards = cards,
@@ -67,7 +83,10 @@ class MainActivity : Activity() {
                 handComplete = intent.getBooleanExtra(ScreenCaptureService.EXTRA_HAND_COMPLETE, false),
                 detectedCardIds = emptyList(),
                 detectedText = intent.getStringExtra(ScreenCaptureService.EXTRA_OCR_TEXT).orEmpty(),
-                handDiagnostic = intent.getStringExtra(ScreenCaptureService.EXTRA_HAND_DIAGNOSTIC).orEmpty()
+                handDiagnostic = intent.getStringExtra(ScreenCaptureService.EXTRA_HAND_DIAGNOSTIC).orEmpty(),
+                detections = detections,
+                frameWidth = intent.getIntExtra(ScreenCaptureService.EXTRA_FRAME_WIDTH, 1080),
+                frameHeight = intent.getIntExtra(ScreenCaptureService.EXTRA_FRAME_HEIGHT, 2400)
             )
             latestObservation = observation
             recentFrames.addLast(observation)
@@ -254,20 +273,22 @@ class MainActivity : Activity() {
         val slotCenters = floatArrayOf(340f, 540f, 740f, 950f)
         val slotX = (offsetX + slotCenters[slot] * scale).toInt()
         val slotY = (offsetY + 2170f * scale).toInt()
-        val targetX = (offsetX + (if (action.recommendedPlacement == "OPPONENT_LANE") {
-            if (useRightHogLane) 790f else 290f
-        } else 540f) * scale).toInt()
-        val targetY = (offsetY + (when (action.recommendedPlacement) {
-            "OPPONENT_LANE" -> 1296f
-            "DEFENSIVE_CENTER" -> 1584f
-            else -> 1680f
-        }) * scale).toInt()
+        val targetLogicalX = (action.placementX ?: when (action.recommendedPlacement) {
+            "OPPONENT_LANE" -> 0.70f
+            else -> 0.50f
+        }) * 1080f
+        val targetLogicalY = (action.placementY ?: when (action.recommendedPlacement) {
+            "OPPONENT_LANE" -> 0.515f
+            "DEFENSIVE_CENTER" -> 0.645f
+            else -> 0.70f
+        }) * 2400f
+        val targetX = (offsetX + targetLogicalX * scale).toInt()
+        val targetY = (offsetY + targetLogicalY * scale).toInt()
         val sent = ShizukuInput.swipe(slotX, slotY, targetX, targetY, 220) { success ->
             runOnUiThread {
                 if (!autoplay) return@runOnUiThread
                 if (success) {
                     ai.recordPlayed(card)
-                    if (card == Card.HOG_RIDER) useRightHogLane = !useRightHogLane
                     lastPlayedCard = card
                     cardAwaitingRotation = card
                     lastPlayedAt = now
