@@ -1,7 +1,6 @@
 package com.clashai.bot.vision
 
 import android.graphics.Bitmap
-import android.graphics.Rect
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -16,56 +15,44 @@ data class OcrResult(
 )
 
 class OcrEngine {
-
-    private val recognizer = TextRecognition.getClient(
-        TextRecognizerOptions.DEFAULT_OPTIONS
-    )
+    private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
     fun analyze(bitmap: Bitmap): OcrResult {
-        val image = InputImage.fromBitmap(bitmap, 0)
-
         val result = try {
             Tasks.await(
-                recognizer.process(image),
+                recognizer.process(InputImage.fromBitmap(bitmap, 0)),
                 2500,
                 TimeUnit.MILLISECONDS
             )
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return OcrResult("", null, emptyList(), 0f)
         }
 
-        val text = result.text
-        val height = bitmap.height
+        val height = bitmap.height.toFloat()
+        val width = bitmap.width.toFloat()
+        val candidates = mutableListOf<Pair<Int, Float>>()
 
-        val candidates = mutableListOf<Int>()
+        // Only inspect the known elixir-counter zone from the supplied 960x1536 HUD layout.
+        for (block in result.textBlocks) for (line in block.lines) {
+            val bounds = line.boundingBox ?: continue
+            val cx = bounds.exactCenterX() / width
+            val cy = bounds.exactCenterY() / height
+            if (cx !in 0.38f..0.64f || cy !in 0.90f..0.995f) continue
 
-        for (block in result.textBlocks) {
-            for (line in block.lines) {
-                val bounds = line.boundingBox ?: continue
-
-                // Elixir counter is expected in the lower HUD area.
-                if (bounds.centerY() < height * 0.70f) continue
-
-                val value = line.text.trim().toIntOrNull()
-                    ?: continue
-
-                if (value in 0..10) {
-                    candidates.add(value)
-                }
-            }
+            val raw = line.text.trim()
+            val fraction = Regex("""(?<!\d)(10|[0-9])\s*/\s*10(?!\d)""").find(raw)
+            val digits = fraction?.groupValues?.get(1)?.toIntOrNull()
+                ?: raw.toIntOrNull()
+                ?: continue
+            if (digits in 0..10) candidates += digits to cy
         }
 
-        val detected = candidates.firstOrNull()
-
-        return OcrResult(
-            allText = text,
-            elixir = detected?.toFloat(),
-            numbers = candidates,
-            confidence = if (detected != null) 0.75f else 0f
-        )
+        val distinct = candidates.map { it.first }.distinct()
+        // Ambiguous or absent OCR is not an elixir reading; fail closed.
+        val value = distinct.singleOrNull()
+        val confidence = if (value != null) 0.90f else 0f
+        return OcrResult(result.text, value?.toFloat(), distinct, confidence)
     }
 
-    fun close() {
-        recognizer.close()
-    }
+    fun close() = recognizer.close()
 }
