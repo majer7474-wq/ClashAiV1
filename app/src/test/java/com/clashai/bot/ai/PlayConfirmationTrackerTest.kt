@@ -33,6 +33,15 @@ class PlayConfirmationTrackerTest {
             tracker.update(listOf(Card.HOG_RIDER, Card.MUSKETEER, Card.CANNON, Card.LOG), true, 3000L))
     }
 
+    @Test fun incompleteFramesStillReachTimeoutInsteadOfWaitingForever() {
+        val tracker = PlayConfirmationTracker(timeoutMs = 2000L)
+        tracker.begin(Card.HOG_RIDER, 1000L)
+        assertEquals(PlayConfirmationTracker.Update.Waiting(Card.HOG_RIDER),
+            tracker.update(listOf(Card.MUSKETEER), false, 2500L))
+        assertEquals(PlayConfirmationTracker.Update.Failed(Card.HOG_RIDER),
+            tracker.update(emptyList(), false, 3000L))
+    }
+
     @Test fun resetCancelsPendingConfirmation() {
         val tracker = PlayConfirmationTracker()
         tracker.begin(Card.HOG_RIDER, 1000L)
