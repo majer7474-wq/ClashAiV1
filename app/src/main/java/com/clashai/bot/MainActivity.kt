@@ -99,8 +99,10 @@ class MainActivity : Activity() {
                 "\nHAND: ${observation.handDiagnostic}" +
                 "\nPRIJETNJA: ${threat.name} | CONF: ${"%.2f".format(observation.handConfidence)}"
             if (autoplay) {
-                if (hasStableConsensus()) autoplayStep(observation)
-                else status.text = "WAIT: VALIDATING 3 CONSECUTIVE FRAMES"
+                // Always advance pending-play verification, even when the hand is
+                // temporarily unstable. Otherwise a failed swipe could wait forever
+                // because autoplayStep() was only called after stable consensus.
+                autoplayStep(observation, hasStableConsensus())
             }
         }
     }
@@ -234,7 +236,7 @@ class MainActivity : Activity() {
         status.text = "AUTOPLAY STOPPED"
     }
 
-    private fun autoplayStep(observation: ScreenObservation) {
+    private fun autoplayStep(observation: ScreenObservation, allowNewAction: Boolean) {
         if (!autoplay) return
         if (!ShizukuInput.isReady()) {
             stopAutoplay()
@@ -260,6 +262,13 @@ class MainActivity : Activity() {
                 return
             }
             PlayConfirmationTracker.Update.Idle -> Unit
+        }
+
+        // A new card decision still requires three stable frames, but a pending
+        // play must be verified/timed out on every incoming frame above.
+        if (!allowNewAction) {
+            status.text = "WAIT: VALIDATING 3 CONSECUTIVE FRAMES"
+            return
         }
 
         val action = ai.process(observation)
