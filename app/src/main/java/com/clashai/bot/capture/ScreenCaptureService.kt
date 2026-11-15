@@ -35,6 +35,8 @@ class ScreenCaptureService : Service() {
         const val EXTRA_HAND_CONFIDENCE = "observation_hand_confidence"
         const val EXTRA_ELIXIR_CONFIDENCE = "observation_elixir_confidence"
         const val EXTRA_ERROR = "observation_error"
+        const val EXTRA_OCR_TEXT = "observation_ocr_text"
+        const val EXTRA_HAND_DIAGNOSTIC = "observation_hand_diagnostic"
     }
 
     private var projection: MediaProjection? = null
@@ -212,6 +214,8 @@ class ScreenCaptureService : Service() {
                 putExtra(EXTRA_HAND_CARDS, observation.visibleCards.joinToString(",") { it.name })
                 putExtra(EXTRA_HAND_COMPLETE, observation.handComplete)
                 putExtra(EXTRA_HAND_CONFIDENCE, observation.handConfidence)
+                putExtra(EXTRA_OCR_TEXT, observation.detectedText)
+                putExtra(EXTRA_HAND_DIAGNOSTIC, observation.handDiagnostic)
                 putExtra(EXTRA_ELIXIR_CONFIDENCE, if (observation.elixir != null) 0.75f else 0f)
             })
 
