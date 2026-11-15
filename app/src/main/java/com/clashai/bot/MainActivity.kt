@@ -15,6 +15,7 @@ import android.content.IntentFilter
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import com.clashai.bot.ai.AIController
+import com.clashai.bot.ai.PlayConfirmationTracker
 import com.clashai.bot.ai.Card
 import com.clashai.bot.ai.Threat
 import com.clashai.bot.capture.ScreenCaptureService
@@ -25,6 +26,7 @@ import com.clashai.bot.vision.ArenaDetection
 class MainActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
     private val ai = AIController()
+    private val playConfirmation = PlayConfirmationTracker(timeoutMs = 2500L)
     private lateinit var status: TextView
     private lateinit var liveState: TextView
     private lateinit var autoSwitch: Switch
@@ -216,6 +218,7 @@ class MainActivity : Activity() {
         }
         autoplay = enabled
         if (!enabled) {
+            playConfirmation.reset()
             status.text = "AUTOPLAY STOPPED"
             return
         }
@@ -225,6 +228,7 @@ class MainActivity : Activity() {
     private fun stopAutoplay() {
         // STOP must invalidate and terminate an in-flight Shizuku input command.
         ShizukuInput.cancelAll()
+        playConfirmation.reset()
         autoplay = false
         if (::autoSwitch.isInitialized) autoSwitch.isChecked = false
         status.text = "AUTOPLAY STOPPED"
@@ -237,13 +241,33 @@ class MainActivity : Activity() {
             status.text = "INPUT LOST — AUTOPLAY STOPPED"
             return
         }
+        val now = System.currentTimeMillis()
+        when (val verification = playConfirmation.update(observation.visibleCards, observation.handComplete, now)) {
+            is PlayConfirmationTracker.Update.Confirmed -> {
+                ai.recordPlayed(verification.card)
+                lastPlayedCard = verification.card
+                cardAwaitingRotation = verification.card
+                lastPlayedAt = now
+                status.text = "PLAY VERIFIED: ${verification.card.displayName} LEFT THE HAND"
+            }
+            is PlayConfirmationTracker.Update.Failed -> {
+                stopAutoplay()
+                status.text = "PLAY NOT VERIFIED: ${verification.card.displayName} DID NOT LEAVE THE HAND"
+                return
+            }
+            is PlayConfirmationTracker.Update.Waiting -> {
+                status.text = "VERIFYING PLAY: ${verification.card.displayName}"
+                return
+            }
+            PlayConfirmationTracker.Update.Idle -> Unit
+        }
+
         val action = ai.process(observation)
         val card = action.card
         if (card == null) {
             status.text = "WAIT: ${action.reason}"
             return
         }
-        val now = System.currentTimeMillis()
         if (now - observation.capturedAtMs > 900L) {
             status.text = "WAIT: STALE SCREEN"
             return
@@ -284,11 +308,8 @@ class MainActivity : Activity() {
             runOnUiThread {
                 if (!autoplay) return@runOnUiThread
                 if (success) {
-                    ai.recordPlayed(card)
-                    lastPlayedCard = card
-                    cardAwaitingRotation = card
-                    lastPlayedAt = now
-                    status.text = "AI PLAY SENT: ${card.displayName}"
+                    playConfirmation.begin(card, System.currentTimeMillis())
+                    status.text = "INPUT SENT — VERIFYING ${card.displayName} IN LIVE HAND"
                 } else {
                     stopAutoplay()
                     status.text = "INPUT FAILED — AUTOPLAY STOPPED"
