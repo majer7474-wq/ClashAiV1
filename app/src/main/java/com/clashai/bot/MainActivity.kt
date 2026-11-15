@@ -33,6 +33,7 @@ class MainActivity : Activity() {
     private var lastPlayedCard: Card? = null
     // A card cannot be replayed until the hand visibly cycles and that card returns.
     private var cardAwaitingRotation: Card? = null
+    private var useRightHogLane = false
     private var receiverRegistered = false
     private val recentFrames = ArrayDeque<ScreenObservation>()
 
@@ -229,7 +230,11 @@ class MainActivity : Activity() {
         val height = resources.displayMetrics.heightPixels
         val slotX = (width * (0.245f + (slot + 0.5f) * 0.17f)).toInt()
         val slotY = (height * 0.90f).toInt()
-        val targetX = (width * 0.50f).toInt()
+        val targetX = if (action.recommendedPlacement == "OPPONENT_LANE") {
+            (width * if (useRightHogLane) 0.73f else 0.27f).toInt()
+        } else {
+            (width * 0.50f).toInt()
+        }
         val targetY = when (action.recommendedPlacement) {
             "OPPONENT_LANE" -> (height * 0.54f).toInt()
             "DEFENSIVE_CENTER" -> (height * 0.66f).toInt()
@@ -240,6 +245,7 @@ class MainActivity : Activity() {
                 if (!autoplay) return@runOnUiThread
                 if (success) {
                     ai.recordPlayed(card)
+                    if (card == Card.HOG_RIDER) useRightHogLane = !useRightHogLane
                     lastPlayedCard = card
                     cardAwaitingRotation = card
                     lastPlayedAt = now
