@@ -41,6 +41,15 @@ jobs:
           python tools/export_yolo.py
           mkdir -p app/src/main/assets
           cp best.onnx app/src/main/assets/best.onnx
+      - name: Package card reference images
+        run: |
+          mkdir -p app/src/main/assets/card_templates
+          curl -L --fail --retry 3 https://codeload.github.com/jeromewir/clash-royale-assets/tar.gz/refs/heads/master -o card-assets.tar.gz
+          tar -xzf card-assets.tar.gz --strip-components=1 --wildcards '*/images/cards/*.png' '*/LICENSE'
+          cp images/cards/*.png app/src/main/assets/card_templates/
+          cp LICENSE app/src/main/assets/card_templates/LICENSE.txt
+          test "$(find app/src/main/assets/card_templates -maxdepth 1 -name '*.png' | wc -l)" -ge 80
+          echo "Packaged $(find app/src/main/assets/card_templates -maxdepth 1 -name '*.png' | wc -l) card templates"
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
