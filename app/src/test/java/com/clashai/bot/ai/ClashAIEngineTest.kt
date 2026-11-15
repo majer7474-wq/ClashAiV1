@@ -49,6 +49,32 @@ class ClashAIEngineTest {
         assertEquals(Card.LOG, action.card)
     }
 
+
+    @Test fun cyclesCheapCardBeforeElixirBarIsNearlyFull() {
+        val state = BattleState(
+            elixir = 3.0f,
+            hand = listOf(Card.ICE_SPIRIT, Card.SKELETONS, Card.ICE_GOLEM, Card.MUSKETEER),
+            enemyThreat = Threat.NONE,
+            handConfidence = 1f,
+            observationAgeMs = 0L
+        )
+        val action = engine.chooseAction(state)
+        assertEquals(Card.ICE_SPIRIT, action.card)
+    }
+
+    @Test fun doesNotRepeatRecentlyPlayedCycleCard() {
+        engine.recordPlay(Card.ICE_SPIRIT)
+        val state = BattleState(
+            elixir = 3.0f,
+            hand = listOf(Card.ICE_SPIRIT, Card.SKELETONS, Card.ICE_GOLEM, Card.MUSKETEER),
+            enemyThreat = Threat.NONE,
+            handConfidence = 1f,
+            observationAgeMs = 0L
+        )
+        val action = engine.chooseAction(state)
+        assertEquals(Card.SKELETONS, action.card)
+    }
+
     @Test fun staleObservationNeverProducesPlay() {
         val action = engine.chooseAction(state(age = 2000L))
         assertNull(action.card)

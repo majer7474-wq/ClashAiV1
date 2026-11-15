@@ -89,16 +89,19 @@ class ClashAIEngine {
             }
         }
 
-        if (state.elixir >= 9.0f) {
-            val cycle = listOf(Card.ICE_SPIRIT, Card.SKELETONS, Card.ICE_GOLEM)
-                .firstOrNull { candidate ->
-                    candidate in affordable && recentPlays.takeLast(2).count { it == candidate } == 0
-                }
-            if (cycle != null) {
-                val y = if (cycle == Card.ICE_GOLEM) 0.78f else 0.84f
-                return action(cycle, "RAGE cycle: avoid wasting elixir at the bar cap",
-                    45, "SAFE_CYCLE", 0.50f, y)
+        // Keep the Hog 2.6 cycle moving instead of waiting until 9 elixir.
+        // Preserve a small reserve so a cheap cycle card does not empty the bar
+        // immediately before a Hog/defensive response becomes available.
+        val cycle = listOf(Card.ICE_SPIRIT, Card.SKELETONS, Card.ICE_GOLEM)
+            .firstOrNull { candidate ->
+                candidate in affordable &&
+                    state.elixir >= candidate.cost + CYCLE_RESERVE_ELIXIR &&
+                    recentPlays.takeLast(2).count { it == candidate } == 0
             }
+        if (cycle != null) {
+            val y = if (cycle == Card.ICE_GOLEM) 0.78f else 0.84f
+            return action(cycle, "Hog 2.6 cycle: rotate cheaply while no immediate defense is needed",
+                45, "SAFE_CYCLE", 0.50f, y)
         }
 
         return wait("No safe high-value action; preserve elixir for Hog or defense")
@@ -164,6 +167,7 @@ class ClashAIEngine {
     private fun wait(reason: String) = AIAction(null, reason, 0, "NONE")
 
     companion object {
+        private const val CYCLE_RESERVE_ELIXIR = 1.5f
         private val AIR_UNITS = setOf(
             "balloon", "baby-dragon", "lava-hound", "inferno-dragon", "phoenix-big",
             "phoenix-small", "minion", "minion-giant", "bat", "electro-dragon",
