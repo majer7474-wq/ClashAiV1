@@ -20,10 +20,15 @@ class OcrEngine {
     fun analyze(bitmap: Bitmap): OcrResult {
         // The elixir counter and purple meter are in the lower-centre HUD,
         // directly below the card row. Do not OCR the lower-left emote/next-card area.
-        val left = (bitmap.width * 0.30f).toInt().coerceIn(0, bitmap.width - 1)
-        val top = (bitmap.height * 0.84f).toInt().coerceIn(0, bitmap.height - 1)
-        val right = (bitmap.width * 0.70f).toInt().coerceIn(left + 1, bitmap.width)
-        val bottom = (bitmap.height * 0.998f).toInt().coerceIn(top + 1, bitmap.height)
+        // Crop relative to the actual 1080x2400 game viewport, not the
+        // physical tablet frame. This handles centered letterboxing in split view.
+        val scale = minOf(bitmap.width / 1080f, bitmap.height / 2400f)
+        val offsetX = (bitmap.width - 1080f * scale) / 2f
+        val offsetY = (bitmap.height - 2400f * scale) / 2f
+        val left = (offsetX + 300f * scale).toInt().coerceIn(0, bitmap.width - 1)
+        val top = (offsetY + 1980f * scale).toInt().coerceIn(0, bitmap.height - 1)
+        val right = (offsetX + 780f * scale).toInt().coerceIn(left + 1, bitmap.width)
+        val bottom = (offsetY + 2395f * scale).toInt().coerceIn(top + 1, bitmap.height)
         val hudCrop = try {
             Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
         } catch (_: Exception) {
