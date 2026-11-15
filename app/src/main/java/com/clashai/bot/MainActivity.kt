@@ -176,7 +176,7 @@ class MainActivity : Activity() {
         if (frames[1].capturedAtMs - frames[0].capturedAtMs !in 150L..3000L) return false
         if (frames[2].capturedAtMs - frames[1].capturedAtMs !in 150L..3000L) return false
         if (frames.last().capturedAtMs - frames.first().capturedAtMs < 400L) return false
-        if (frames.any { !it.handComplete || it.handConfidence < 0.76f || it.visibleCards.size != 4 }) return false
+        if (frames.any { !it.handComplete || it.handConfidence < 0.70f || it.visibleCards.size != 4 }) return false
         // Arena detections fluctuate between frames; only the hand must remain stable.
         // Requiring an identical threat label blocked autoplay whenever YOLO flickered.
         if (frames.any { it.visibleCards != first.visibleCards }) return false
