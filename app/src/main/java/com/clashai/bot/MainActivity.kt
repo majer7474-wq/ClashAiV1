@@ -197,15 +197,20 @@ class MainActivity : Activity() {
             "DEFENSIVE_CENTER" -> (height * 0.66f).toInt()
             else -> (height * 0.70f).toInt()
         }
-        val sent = ShizukuInput.swipe(slotX, slotY, targetX, targetY, 220)
-        if (sent) {
-            lastPlayedCard = card
-            lastPlayedAt = now
-            status.text = "AI PLAY: ${card.displayName} — ${action.reason}"
-        } else {
-            stopAutoplay()
-            status.text = "INPUT FAILED — AUTOPLAY STOPPED"
+        val sent = ShizukuInput.swipe(slotX, slotY, targetX, targetY, 220) { success ->
+            runOnUiThread {
+                if (!autoplay) return@runOnUiThread
+                if (success) {
+                    lastPlayedCard = card
+                    lastPlayedAt = now
+                    status.text = "AI PLAY SENT: ${card.displayName}"
+                } else {
+                    stopAutoplay()
+                    status.text = "INPUT FAILED — AUTOPLAY STOPPED"
+                }
+            }
         }
+        if (!sent) status.text = "WAIT: INPUT BUSY OR SHIZUKU NOT READY"
     }
 
     private fun requestCapture() {
