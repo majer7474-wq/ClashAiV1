@@ -1,5 +1,6 @@
 package com.clashai.bot.vision
 
+import android.content.Context
 import android.graphics.Bitmap
 import com.clashai.bot.ai.Card
 import com.clashai.bot.ai.Threat
@@ -9,28 +10,62 @@ data class ScreenObservation(
     val visibleCards: List<Card>,
     val enemyThreat: Threat,
     val confidence: Float,
-    val detectedText: String = ""
+    val detectedText: String = "",
+    val detections: List<ArenaDetection> = emptyList(),
+    val capturedAtMs: Long = System.currentTimeMillis()
 )
 
-class FrameAnalyzer {
-
+class FrameAnalyzer(context: Context) : AutoCloseable {
     private val ocr = OcrEngine()
+    private val arenaDetector = YoloArenaDetector(context)
 
     fun analyze(bitmap: Bitmap): ScreenObservation {
         require(bitmap.width > 0 && bitmap.height > 0)
+        val textResult = ocr.analyze(bitmap)
+        val detections = try {
+            arenaDetector.detect(bitmap)
+        } catch (_: Exception) {
+            emptyList()
+        }
 
-        val result = ocr.analyze(bitmap)
+        // Clash Royale's opponent half is the upper half in the standard
+        // portrait orientation. This is an observation only, not permission
+        // to play: hand and elixir confidence are validated independently.
+        val enemyObjects = detections.filter {
+            it.centerY < bitmap.height * 0.48f &&
+                it.label !in setOf("king-tower", "queen-tower", "dagger-duchess-tower", "cannoneer-tower")
+        }
+        val threat = classifyThreat(enemyObjects)
+        val confidence = detections.maxOfOrNull { it.confidence } ?: 0f
 
         return ScreenObservation(
-            elixir = result.elixir,
+            elixir = textResult.elixir,
             visibleCards = emptyList(),
-            enemyThreat = Threat.NONE,
-            confidence = result.confidence,
-            detectedText = result.allText
+            enemyThreat = threat,
+            confidence = confidence,
+            detectedText = textResult.allText,
+            detections = detections
         )
     }
 
-    fun close() {
+    private fun classifyThreat(enemies: List<ArenaDetection>): Threat {
+        if (enemies.isEmpty()) return Threat.NONE
+        val labels = enemies.map { it.label }.toSet()
+        val highDanger = setOf("hog-rider", "hog", "ram-rider", "balloon", "giant", "golem", "pekka", "mega-knight")
+        val air = setOf("balloon", "baby-dragon", "lava-hound", "inferno-dragon", "phoenix-big", "minion", "minion-giant")
+        val swarm = setOf("skeleton", "bat", "goblin", "spear-goblin", "minion", "skeleton-army-evolution")
+        val tanks = setOf("giant", "golem", "pekka", "mega-knight", "electro-giant", "lava-hound", "royal-giant")
+        return when {
+            labels.any { it in highDanger } -> Threat.HIGH_DANGER
+            labels.any { it in air } -> Threat.AIR
+            labels.any { it in swarm } -> Threat.SWARM
+            labels.any { it in tanks } -> Threat.TANK
+            else -> Threat.WIN_CONDITION
+        }
+    }
+
+    override fun close() {
         ocr.close()
+        arenaDetector.close()
     }
 }
