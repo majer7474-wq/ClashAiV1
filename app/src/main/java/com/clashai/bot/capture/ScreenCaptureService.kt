@@ -157,6 +157,8 @@ class ScreenCaptureService : Service() {
         }
         lastInferenceAt = now
 
+        var paddedBitmap: Bitmap? = null
+        var croppedBitmap: Bitmap? = null
         try {
             val plane = image.planes[0]
             val buffer = plane.buffer
@@ -167,24 +169,25 @@ class ScreenCaptureService : Service() {
             val height = image.height
             val paddedWidth = rowStride / pixelStride
 
-            val bitmap = Bitmap.createBitmap(
+            val frameBitmap = Bitmap.createBitmap(
                 paddedWidth,
                 height,
                 Bitmap.Config.ARGB_8888
             )
+            paddedBitmap = frameBitmap
+            frameBitmap.copyPixelsFromBuffer(buffer)
 
-            bitmap.copyPixelsFromBuffer(buffer)
-
-            val cropped = Bitmap.createBitmap(
-                bitmap,
+            val frameCrop = Bitmap.createBitmap(
+                frameBitmap,
                 0,
                 0,
                 width,
                 height
             )
+            croppedBitmap = frameCrop
 
-            val metrics = ImageMetricsCalculator.calculate(cropped)
-            val observation = analyzer.analyze(cropped)
+            val metrics = ImageMetricsCalculator.calculate(frameCrop)
+            val observation = analyzer.analyze(frameCrop)
 
             Log.d(
                 TAG,
@@ -205,12 +208,12 @@ class ScreenCaptureService : Service() {
                 putExtra(EXTRA_ELIXIR_CONFIDENCE, if (observation.elixir != null) 0.75f else 0f)
             })
 
-            cropped.recycle()
-            bitmap.recycle()
-
         } catch (e: Exception) {
             Log.e(TAG, "Frame processing error", e)
         } finally {
+            // Recycle even when OCR/ONNX throws; otherwise live analysis leaks bitmaps.
+            croppedBitmap?.recycle()
+            paddedBitmap?.recycle()
             image.close()
         }
     }
