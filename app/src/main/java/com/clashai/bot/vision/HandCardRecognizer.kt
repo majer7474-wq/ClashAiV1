@@ -137,7 +137,7 @@ class HandCardRecognizer(private val catalog: CardTemplateCatalog) {
 
     companion object {
         private const val GRID = 16
-        private const val MIN_SCORE = 0.84f
-        private const val MIN_MARGIN = 0.035f
+        private const val MIN_SCORE = 0.76f
+        private const val MIN_MARGIN = 0.02f
     }
 }
