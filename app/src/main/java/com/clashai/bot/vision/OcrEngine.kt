@@ -18,26 +18,40 @@ class OcrEngine {
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
     fun analyze(bitmap: Bitmap): OcrResult {
-        val result = try {
-            Tasks.await(
-                recognizer.process(InputImage.fromBitmap(bitmap, 0)),
-                2500,
-                TimeUnit.MILLISECONDS
-            )
+        // The elixir counter is in the lower-center HUD. Running ML Kit on the
+        // entire live frame wastes CPU and delays every subsequent AI decision.
+        val left = (bitmap.width * 0.30f).toInt().coerceIn(0, bitmap.width - 1)
+        val top = (bitmap.height * 0.84f).toInt().coerceIn(0, bitmap.height - 1)
+        val right = (bitmap.width * 0.70f).toInt().coerceIn(left + 1, bitmap.width)
+        val bottom = (bitmap.height * 0.998f).toInt().coerceIn(top + 1, bitmap.height)
+        val hudCrop = try {
+            Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
         } catch (_: Exception) {
             return OcrResult("", null, emptyList(), 0f)
         }
 
-        val height = bitmap.height.toFloat()
-        val width = bitmap.width.toFloat()
+        val result = try {
+            Tasks.await(
+                recognizer.process(InputImage.fromBitmap(hudCrop, 0)),
+                1200,
+                TimeUnit.MILLISECONDS
+            )
+        } catch (_: Exception) {
+            return OcrResult("", null, emptyList(), 0f)
+        } finally {
+            hudCrop.recycle()
+        }
+
+        val height = (bottom - top).toFloat()
+        val width = (right - left).toFloat()
         val candidates = mutableListOf<Pair<Int, Float>>()
 
-        // Only inspect the known elixir-counter zone from the supplied 960x1536 HUD layout.
+        // Coordinates are now relative to the cropped lower-center HUD region.
         for (block in result.textBlocks) for (line in block.lines) {
             val bounds = line.boundingBox ?: continue
             val cx = bounds.exactCenterX() / width
             val cy = bounds.exactCenterY() / height
-            if (cx !in 0.38f..0.64f || cy !in 0.90f..0.995f) continue
+            if (cx !in 0.12f..0.90f || cy !in 0.30f..0.99f) continue
 
             val raw = line.text.trim()
             val fraction = Regex("""(?<!\d)(10|[0-9])\s*/\s*10(?!\d)""").find(raw)
