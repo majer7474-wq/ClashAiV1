@@ -12,16 +12,22 @@ data class ScreenObservation(
     val confidence: Float,
     val detectedText: String = "",
     val detections: List<ArenaDetection> = emptyList(),
-    val capturedAtMs: Long = System.currentTimeMillis()
+    val capturedAtMs: Long = System.currentTimeMillis(),
+    val handConfidence: Float = 0f,
+    val handComplete: Boolean = false,
+    val detectedCardIds: List<String> = emptyList()
 )
 
 class FrameAnalyzer(context: Context) : AutoCloseable {
     private val ocr = OcrEngine()
     private val arenaDetector = YoloArenaDetector(context)
+    private val cardCatalog = CardTemplateCatalog(context)
+    private val handRecognizer = HandCardRecognizer(cardCatalog)
 
     fun analyze(bitmap: Bitmap): ScreenObservation {
         require(bitmap.width > 0 && bitmap.height > 0)
         val textResult = ocr.analyze(bitmap)
+        val handResult = handRecognizer.recognize(bitmap)
         val detections = try {
             arenaDetector.detect(bitmap)
         } catch (_: Exception) {
@@ -40,11 +46,14 @@ class FrameAnalyzer(context: Context) : AutoCloseable {
 
         return ScreenObservation(
             elixir = textResult.elixir,
-            visibleCards = emptyList(),
+            visibleCards = handResult.cards,
             enemyThreat = threat,
             confidence = confidence,
             detectedText = textResult.allText,
-            detections = detections
+            detections = detections,
+            handConfidence = handResult.confidence,
+            handComplete = handResult.complete,
+            detectedCardIds = handResult.cardIds
         )
     }
 
@@ -67,5 +76,6 @@ class FrameAnalyzer(context: Context) : AutoCloseable {
     override fun close() {
         ocr.close()
         arenaDetector.close()
+        cardCatalog.close()
     }
 }
