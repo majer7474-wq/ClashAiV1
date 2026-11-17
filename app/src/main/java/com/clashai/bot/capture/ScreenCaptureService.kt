@@ -35,6 +35,7 @@ class ScreenCaptureService : Service() {
 
     private val analyzer = FrameAnalyzer()
     private val aiController = AIController()
+    private var lastProcessedFrameMs = 0L
 
     override fun onBind(intent: Intent?) = null
 
@@ -85,6 +86,8 @@ class ScreenCaptureService : Service() {
 
     private fun startCapture(resultCode: Int, data: Intent) {
         try {
+            aiController.reset()
+            lastProcessedFrameMs = 0L
             val manager =
                 getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
 
@@ -140,6 +143,15 @@ class ScreenCaptureService : Service() {
 
     private fun processFrame(source: ImageReader) {
         val image = source.acquireLatestImage() ?: return
+
+        // OCR is synchronous and can take hundreds of milliseconds. Avoid
+        // queueing redundant frames faster than the analysis pipeline can use.
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastProcessedFrameMs < 200L) {
+            image.close()
+            return
+        }
+        lastProcessedFrameMs = now
 
         try {
             val plane = image.planes[0]
