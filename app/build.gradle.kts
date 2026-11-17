@@ -11,8 +11,8 @@ android {
         applicationId = "com.clashai.bot"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1-counterpush"
+        versionCode = 3
+        versionName = "1.2-build119-status-taps"
     }
 
     compileOptions {
