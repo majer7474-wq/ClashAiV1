@@ -21,7 +21,8 @@ class AIController {
             handConfidence = observation.handConfidence,
             observationAgeMs = (SystemClock.elapsedRealtime() - observation.capturedAtMs)
                 .coerceAtLeast(0L),
-            elixirObservationAgeMs = elixirTracker.getVisualAgeMs()
+            elixirObservationAgeMs = elixirTracker.getVisualAgeMs(),
+            elixirConfidence = if (observation.elixir != null) observation.confidence else 0f
         )
 
         return engine.chooseAction(state)
