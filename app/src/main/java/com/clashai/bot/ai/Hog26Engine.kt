@@ -58,23 +58,17 @@ class Hog26Engine {
             Threat.NONE -> Unit
         }
 
-        // Main Hog 2.6 win condition. Keep one elixir in reserve when possible.
-        if (Card.HOG_RIDER in affordable && state.elixir >= 5f) {
+        // Hog Rider costs four elixir. Requiring five caused unnecessary idle time.
+        if (Card.HOG_RIDER in affordable && state.elixir >= 4f) {
             return action(Card.HOG_RIDER, "Hog Rider napad", 90, "Most")
         }
 
-        // Cycle only when Hog is not currently in hand. Never throw away a
-        // defensive card while Hog is waiting to become affordable.
-        if (Card.HOG_RIDER !in state.hand) {
-            val cycle = listOf(Card.ICE_SPIRIT, Card.SKELETONS, Card.ICE_GOLEM)
-                .firstOrNull { it in affordable && state.elixir >= it.cost + 2f }
-            if (cycle != null) {
-                return action(cycle, "Cikliranje prema Hog Rideru", 55, "Sigurna pozicija")
-            }
-        }
-
-        if (Card.FIREBALL in affordable && state.enemyThreat == Threat.SWARM) {
-            return action(Card.FIREBALL, "Fireball protiv grupiranih jedinica", 70, "Grupa protivnika")
+        // Cycle cheap cards even while Hog is in hand but not yet affordable.
+        // This prevents the bot from sitting idle with 1-3 elixir.
+        val cycle = listOf(Card.ICE_SPIRIT, Card.SKELETONS, Card.ICE_GOLEM)
+            .firstOrNull { it in affordable && state.elixir >= it.cost + 1.5f }
+        if (cycle != null) {
+            return action(cycle, "Cikliranje prema Hog Rideru", 55, "Sigurna pozicija")
         }
 
         return wait("Čuvanje eliksira")
