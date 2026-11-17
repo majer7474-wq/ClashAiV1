@@ -14,6 +14,7 @@ import android.os.*
 import android.util.Log
 import com.clashai.bot.vision.FrameAnalyzer
 import com.clashai.bot.vision.ImageMetricsCalculator
+import com.clashai.bot.input.ShizukuInput
 
 class ScreenCaptureService : Service() {
 
@@ -21,6 +22,8 @@ class ScreenCaptureService : Service() {
         const val EXTRA_RESULT = "capture_result"
         const val EXTRA_DATA = "capture_data"
         const val ACTION_STOP = "clashai.STOP_CAPTURE"
+        const val ACTION_AUTO_START = "clashai.AUTO_START"
+        const val ACTION_AUTO_STOP = "clashai.AUTO_STOP"
         private const val CHANNEL = "clashai_capture"
         private const val NOTIFICATION_ID = 701
         private const val TAG = "ClashAI"
@@ -33,6 +36,12 @@ class ScreenCaptureService : Service() {
     private var handler: Handler? = null
 
     private val analyzer = FrameAnalyzer()
+    private var autoEnabled = false
+    private var lastAction = 0L
+    private var nextSlot = 0
+    private var previousSignature = 0L
+    private var stableFrames = 0
+
 
     override fun onBind(intent: Intent?) = null
 
@@ -42,6 +51,14 @@ class ScreenCaptureService : Service() {
         startId: Int
     ): Int {
 
+        if (intent?.action == ACTION_AUTO_START) {
+            autoEnabled = true
+            return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_AUTO_STOP) {
+            autoEnabled = false
+            return START_NOT_STICKY
+        }
         if (intent?.action == ACTION_STOP) {
             stopCapture()
             return START_NOT_STICKY
@@ -167,6 +184,7 @@ class ScreenCaptureService : Service() {
 
             val metrics = ImageMetricsCalculator.calculate(cropped)
             val observation = analyzer.analyze(cropped)
+            if (autoEnabled) autonomousStep(cropped, observation.elixir)
 
             Log.d(
                 TAG,
@@ -182,6 +200,32 @@ class ScreenCaptureService : Service() {
             Log.e(TAG, "Frame processing error", e)
         } finally {
             image.close()
+        }
+    }
+
+    private fun autonomousStep(bitmap: Bitmap, elixir: Float?) {
+        if (!ShizukuInput.isReady() || elixir == null || elixir < 4f) return
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w < 400 || h < 600) return
+        val now = System.currentTimeMillis()
+        if (now - lastAction < 4200L) return
+        var signature = 0L
+        for (slot in 0..3) {
+            val x = (w * (0.325f + slot * 0.17f)).toInt().coerceIn(0, w - 1)
+            val y = (h * 0.90f).toInt().coerceIn(0, h - 1)
+            signature = signature * 31 + bitmap.getPixel(x, y).toLong()
+        }
+        if (signature == previousSignature) stableFrames++ else stableFrames = 0
+        previousSignature = signature
+        if (stableFrames < 2) return
+        val slot = nextSlot
+        val fromX = (w * (0.325f + slot * 0.17f)).toInt()
+        val fromY = (h * 0.90f).toInt()
+        if (ShizukuInput.swipe(fromX, fromY, (w * 0.50f).toInt(), (h * 0.67f).toInt(), 180)) {
+            lastAction = now
+            nextSlot = (slot + 1) % 4
+            stableFrames = 0
         }
     }
 
