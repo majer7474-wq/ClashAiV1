@@ -206,11 +206,12 @@ class MainActivity : Activity() {
                 w / 2,
                 (h * 0.90f).toInt(),
                 w / 2,
-                (h * 0.60f).toInt()
+                (h * 0.60f).toInt(),
+                onComplete = { success -> runOnUiThread { status.text = if (success) "TEST INPUT EXECUTED" else "TEST INPUT FAILED" } }
             )
 
             status.text =
-                if (ok) "TEST INPUT SENT"
+                if (ok) "TEST INPUT RUNNING"
                 else "SHIZUKU NOT READY"
         })
 
@@ -362,7 +363,7 @@ class MainActivity : Activity() {
             )
 
             else -> {
-                if (elixir >= 5f) {
+                if (elixir >= 5f && affordable.any { it.second == Card.HOG_RIDER }) {
                     choose(affordable, listOf(Card.HOG_RIDER))
                 } else if (elixir >= 8f) {
                     choose(
@@ -405,14 +406,24 @@ class MainActivity : Activity() {
             slotX,
             slotY,
             placementX,
-            placementY
+            placementY,
+            onComplete = { success ->
+                runOnUiThread {
+                    if (success) {
+                        lastPlayed = chosen.second.displayName
+                        lastPlayTime = System.currentTimeMillis()
+                        status.text = "INPUT EXECUTED: ${chosen.second.displayName}"
+                    } else {
+                        status.text = "INPUT COMMAND FAILED"
+                        autoSwitch.isChecked = false
+                    }
+                }
+            }
         )
 
         if (sent) {
-            lastPlayed = chosen.second.displayName
             lastPlayTime = now
-            status.text =
-                "AUTOPLAY: ${chosen.second.displayName} | ${threat.name}"
+            status.text = "AUTOPLAY: INPUT RUNNING"
         } else {
             status.text = "INPUT FAILED"
             setAutoplay(false)
