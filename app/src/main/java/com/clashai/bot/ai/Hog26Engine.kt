@@ -30,6 +30,10 @@ class Hog26Engine {
             return wait("Eliksir nije svježe vizualno potvrđen")
         }
 
+        if (!state.elixirConfidence.isFinite() || state.elixirConfidence < 0.85f) {
+            return wait("Pouzdanost očitanja eliksira nije dovoljna")
+        }
+
         if (state.hand.size != 4 || state.handConfidence < 0.85f) {
             return wait("Prepoznavanje sve 4 karte nije potvrđeno")
         }
@@ -113,9 +117,7 @@ class Hog26Engine {
 
         // HOG RIDER OFFENSE
         if (Card.HOG_RIDER in affordable) {
-
             val minimumElixir = if (state.doubleElixir) 4f else 5f
-
             if (state.elixir >= minimumElixir) {
                 return action(
                     Card.HOG_RIDER,
