@@ -33,7 +33,7 @@ object ShizukuInput {
      * accepted the input command.
      */
     @Synchronized
-    fun swipe(
+    fun placeCard(
         startX: Int,
         startY: Int,
         endX: Int,
@@ -46,7 +46,7 @@ object ShizukuInput {
 
         var process: Process? = null
         return try {
-            val command = "input swipe $startX $startY $endX $endY $duration"
+            val command = "input tap $startX $startY && input tap $endX $endY"
             process = Shizuku.newProcess(
                 arrayOf("sh", "-c", command),
                 null,
