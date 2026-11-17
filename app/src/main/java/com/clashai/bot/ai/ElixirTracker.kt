@@ -9,7 +9,7 @@ class ElixirTracker(
 ) {
     private var currentElixir = 5f
     private var lastUpdateMs = clock()
-    private var lastVisualMs = 0L
+    private var lastVisualMs: Long? = null
     private var regenerationPerSecond = 1f / 2.8f
 
     @Synchronized
@@ -45,9 +45,10 @@ class ElixirTracker(
     }
 
     @Synchronized
-    fun getVisualAgeMs(): Long =
-        if (lastVisualMs == 0L) Long.MAX_VALUE
-        else max(0L, clock() - lastVisualMs)
+    fun getVisualAgeMs(): Long {
+        val visualTime = lastVisualMs ?: return Long.MAX_VALUE
+        return max(0L, clock() - visualTime)
+    }
 
     @Synchronized
     fun canPlay(card: Card): Boolean = getElixir() >= card.cost
@@ -64,7 +65,7 @@ class ElixirTracker(
     fun reset() {
         currentElixir = 5f
         lastUpdateMs = clock()
-        lastVisualMs = 0L
+        lastVisualMs = null
         regenerationPerSecond = 1f / 2.8f
     }
 }
