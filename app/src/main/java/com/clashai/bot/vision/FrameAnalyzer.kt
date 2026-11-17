@@ -63,7 +63,7 @@ class FrameAnalyzer(context: Context) {
             confidence = ocrResult.confidence,
             detectedText = ocrResult.allText,
             handConfidence = handConfidence,
-            // Timestamp after OCR + card matching + detector inference. The AI age guard\n            // measures observation processing latency, not the time before analysis began.\n            capturedAtMs = SystemClock.elapsedRealtime(),
+            // Timestamp after vision processing so inference latency does not reject every decision.\n            capturedAtMs = SystemClock.elapsedRealtime(),
             handRegions = hand.regions,
             enemyTargetX = threat.targetX?.times(VirtualGameSpace.WIDTH),
             enemyTargetY = threat.targetY?.let { 300f + it * 1704f },
