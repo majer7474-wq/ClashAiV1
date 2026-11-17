@@ -72,6 +72,19 @@ class Hog26EngineTest {
     }
 
     @Test
+    fun choosesHogAtItsActualFourElixirCost() {
+        val action = Hog26Engine().chooseAction(validState(elixir = 4f))
+        assertEquals(Card.HOG_RIDER, action.card)
+    }
+
+    @Test
+    fun cyclesCheapCardWhileHogIsInHandButNotAffordable() {
+        val hand = listOf(Card.HOG_RIDER, Card.ICE_SPIRIT, Card.SKELETONS, Card.CANNON)
+        val action = Hog26Engine().chooseAction(validState(elixir = 2.5f, hand = hand))
+        assertEquals(Card.ICE_SPIRIT, action.card)
+    }
+
+    @Test
     fun choosesHogWhenConfirmedAndAffordable() {
         val action = Hog26Engine().chooseAction(validState(elixir = 5f))
         assertEquals(Card.HOG_RIDER, action.card)
