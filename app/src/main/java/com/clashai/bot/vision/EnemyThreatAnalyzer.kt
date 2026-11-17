@@ -23,7 +23,7 @@ object EnemyThreatAnalyzer {
         // Dataset arena crop is top-to-bottom: opponent half first, our half second.
         // Keep detections in the opponent half to avoid treating our own defenders as threats.
         val enemies = units.filter { unit ->
-            unit.centerY < 0.57f &&
+            unit.centerY in 0.22f..0.57f &&
                 !unit.name.contains("tower") &&
                 unit.name !in setOf("clock", "elixir")
         }
