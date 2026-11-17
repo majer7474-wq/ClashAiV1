@@ -1,8 +1,11 @@
 package com.clashai.bot.input
 
 import rikka.shizuku.Shizuku
+import java.util.concurrent.atomic.AtomicBoolean
 
 object ShizukuInput {
+
+    private val inputBusy = AtomicBoolean(false)
 
     fun isReady(): Boolean {
         return try {
@@ -34,7 +37,7 @@ object ShizukuInput {
         duration: Int = 220,
         onComplete: ((Boolean) -> Unit)? = null
     ): Boolean {
-        if (!isReady()) return false
+        if (!isReady() || !inputBusy.compareAndSet(false, true)) return false
 
         return try {
             val command =
@@ -51,11 +54,14 @@ object ShizukuInput {
                     onComplete?.invoke(exitCode == 0)
                 } catch (_: Exception) {
                     onComplete?.invoke(false)
+                } finally {
+                    inputBusy.set(false)
                 }
             }.start()
 
             true
         } catch (_: Exception) {
+            inputBusy.set(false)
             false
         }
     }
