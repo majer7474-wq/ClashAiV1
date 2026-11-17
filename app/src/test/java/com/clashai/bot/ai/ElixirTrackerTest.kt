@@ -19,6 +19,19 @@ class ElixirTrackerTest {
     }
 
     @Test
+    fun visualTimestampAtZeroIsStillFresh() {
+        var now = 0L
+        val tracker = ElixirTracker { now }
+
+        tracker.update(6f)
+
+        assertEquals(0L, tracker.getVisualAgeMs())
+
+        now = 250L
+        assertEquals(250L, tracker.getVisualAgeMs())
+    }
+
+    @Test
     fun elixirRegeneratesAtSingleElixirRate() {
         var now = 1_000L
         val tracker = ElixirTracker { now }
