@@ -215,6 +215,30 @@ class MainActivity : Activity() {
                 else "SHIZUKU NOT READY"
         })
 
+        panel.addView(button("PROOF: PLACE SLOT 1") {
+            if (!ShizukuInput.isReady()) {
+                status.text = "SHIZUKU NOT READY"
+            } else {
+                val w = resources.displayMetrics.widthPixels
+                val h = resources.displayMetrics.heightPixels
+                status.text = "TESTING SLOT 1 PLACEMENT"
+                val started = ShizukuInput.swipe(
+                    (w * 0.325f).toInt(),
+                    (h * 0.90f).toInt(),
+                    (w * 0.50f).toInt(),
+                    (h * 0.68f).toInt(),
+                    duration = 180,
+                    onComplete = { success ->
+                        runOnUiThread {
+                            status.text = if (success) "GESTURE EXECUTED - CHECK GAME"
+                                          else "GESTURE FAILED"
+                        }
+                    }
+                )
+                if (!started) status.text = "GESTURE NOT STARTED"
+            }
+        })
+
         panel.addView(button("STOP AUTOPLAY") {
             autoSwitch.isChecked = false
         })
@@ -363,7 +387,7 @@ class MainActivity : Activity() {
             )
 
             else -> {
-                if (elixir >= 5f && affordable.any { it.second == Card.HOG_RIDER }) {
+                if (elixir >= 4f && affordable.any { it.second == Card.HOG_RIDER }) {
                     choose(affordable, listOf(Card.HOG_RIDER))
                 } else if (elixir >= 8f) {
                     choose(
@@ -392,7 +416,7 @@ class MainActivity : Activity() {
         val width = resources.displayMetrics.widthPixels
         val height = resources.displayMetrics.heightPixels
 
-        val slotX = (width * (0.16f + chosen.first * 0.225f)).toInt()
+        val slotX = (width * (0.325f + chosen.first * 0.17f)).toInt()
         val slotY = (height * 0.90f).toInt()
 
         val placementX = (width * 0.50f).toInt()
