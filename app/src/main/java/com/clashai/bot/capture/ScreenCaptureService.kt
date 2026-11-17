@@ -33,7 +33,7 @@ class ScreenCaptureService : Service() {
     private var thread: HandlerThread? = null
     private var handler: Handler? = null
 
-    private val analyzer = FrameAnalyzer()
+    private val analyzer = FrameAnalyzer(this)
     private val aiController = AIController()
     private var lastProcessedFrameMs = 0L
 
@@ -241,6 +241,7 @@ class ScreenCaptureService : Service() {
     }
 
     override fun onDestroy() {
+        analyzer.close()
         stopCapture()
         super.onDestroy()
     }
