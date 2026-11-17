@@ -213,10 +213,13 @@ class ScreenCaptureService : Service() {
                 defensivePlacement(card, observation)
             else -> VirtualGameSpace.placementForCycle()
         }
-        val from = VirtualGameSpace.toScreen(fromVirtual.x.toFloat(), fromVirtual.y.toFloat(), width, height)
+        val region = observation.handRegions.getOrNull(slot) ?: return
+        val from = VirtualGameSpace.Point(
+            (region.centerX() * width).toInt().coerceIn(0, width - 1),
+            (region.centerY() * height).toInt().coerceIn(0, height - 1))
         val to = VirtualGameSpace.toScreen(toVirtual.x.toFloat(), toVirtual.y.toFloat(), width, height)
 
-        val sent = ShizukuInput.swipe(from.x, from.y, to.x, to.y, 180)
+        val sent = ShizukuInput.placeCard(from.x, from.y, to.x, to.y, 180)
         if (sent) {
             lastPlayedCard = card
             lastPlayAtMs = now
