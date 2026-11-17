@@ -259,20 +259,21 @@ class MainActivity : Activity() {
     }
 
     private fun setAutoplay(enabled: Boolean) {
-        if (enabled && !ShizukuInput.isReady()) {
-            autoSwitch.isChecked = false
-            status.text = "AUTOPLAY BLOCKED: SHIZUKU REQUIRED"
-            return
-        }
-
-        autoplay = enabled
+        // The live vision pipeline does not yet recognize and validate all
+        // four cards in hand or confirm that a move was accepted by the game.
+        // Keep autoplay disabled rather than exposing the old manual/random
+        // selector as if it were autonomous gameplay.
+        autoplay = false
+        handler.removeCallbacks(autoTask)
 
         if (enabled) {
-            status.text = "AUTOPLAY ACTIVE"
-            handler.removeCallbacks(autoTask)
-            handler.post(autoTask)
+            autoSwitch.isChecked = false
+            status.text = if (ShizukuInput.isReady()) {
+                "AUTOPLAY BLOCKED: LIVE CARD DETECTION NOT READY"
+            } else {
+                "AUTOPLAY BLOCKED: SHIZUKU REQUIRED"
+            }
         } else {
-            handler.removeCallbacks(autoTask)
             status.text = "AUTOPLAY STOPPED"
         }
     }
