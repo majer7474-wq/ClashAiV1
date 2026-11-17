@@ -53,7 +53,7 @@ object ShizukuInput {
                 null
             )
 
-            val finished = process.waitFor(4, TimeUnit.SECONDS)
+            val finished = process.waitFor(1500, TimeUnit.MILLISECONDS)
             if (!finished) {
                 process.destroyForcibly()
                 false
