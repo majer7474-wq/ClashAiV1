@@ -20,7 +20,9 @@ class OcrEngine {
     fun analyze(bitmap: Bitmap): OcrResult {
         val image = InputImage.fromBitmap(bitmap, 0)
         val result = try {
-            Tasks.await(recognizer.process(image), 1800, TimeUnit.MILLISECONDS)
+            // Keep OCR bounded so one slow frame cannot stall the capture loop
+            // long enough for the AI to reject every resulting observation.
+            Tasks.await(recognizer.process(image), OCR_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         } catch (_: Exception) {
             return OcrResult("", null, emptyList(), 0f)
         }
@@ -48,4 +50,8 @@ class OcrEngine {
     }
 
     fun close() = recognizer.close()
+
+    companion object {
+        private const val OCR_TIMEOUT_MS = 650L
+    }
 }
