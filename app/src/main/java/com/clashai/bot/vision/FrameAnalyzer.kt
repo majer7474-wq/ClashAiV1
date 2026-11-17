@@ -17,6 +17,8 @@ data class ScreenObservation(
 
 class FrameAnalyzer {
 
+    private val handLocator = AdaptiveHandLocator()
+
     private val ocr = OcrEngine()
 
     fun analyze(bitmap: Bitmap): ScreenObservation {
@@ -24,6 +26,7 @@ class FrameAnalyzer {
 
         val capturedAt = SystemClock.elapsedRealtime()
         val result = ocr.analyze(bitmap)
+        val handRegions = handLocator.locate(bitmap)
 
         // Card recognition is intentionally not guessed from OCR text.
         // Until a validated visual card detector is installed, confidence stays 0
@@ -35,7 +38,8 @@ class FrameAnalyzer {
             confidence = result.confidence,
             detectedText = result.allText,
             handConfidence = 0f,
-            capturedAtMs = capturedAt
+            capturedAtMs = capturedAt,
+            handRegions = handRegions.regions
         )
     }
 
