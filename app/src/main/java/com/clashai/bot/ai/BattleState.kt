@@ -11,7 +11,8 @@ data class BattleState(
     val enemyHasBuilding: Boolean = false,
     val tripleElixir: Boolean = false,
     val handConfidence: Float = 0f,
-    val observationAgeMs: Long = Long.MAX_VALUE
+    val observationAgeMs: Long = Long.MAX_VALUE,
+    val elixirObservationAgeMs: Long = Long.MAX_VALUE
 ) {
     val elixirPhase: ElixirPhase
         get() = when {
