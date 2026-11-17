@@ -1,5 +1,6 @@
 package com.clashai.bot.vision
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.RectF
 import android.os.SystemClock
@@ -17,10 +18,10 @@ data class ScreenObservation(
     val handRegions: List<RectF> = emptyList()
 )
 
-class FrameAnalyzer {
+class FrameAnalyzer(context: Context) {
 
     private val handLocator = AdaptiveHandLocator()
-
+    private val cardMatcher = CardTemplateMatcher(context)
     private val ocr = OcrEngine()
 
     fun analyze(bitmap: Bitmap): ScreenObservation {
@@ -28,24 +29,36 @@ class FrameAnalyzer {
 
         val capturedAt = SystemClock.elapsedRealtime()
         val result = ocr.analyze(bitmap)
-        val handRegions = handLocator.locate(bitmap)
+        val hand = handLocator.locate(bitmap)
+        val matches = cardMatcher.recognize(bitmap, hand.regions)
 
-        // Card recognition is intentionally not guessed from OCR text.
-        // Until a validated visual card detector is installed, confidence stays 0
-        // and the autoplay decision gate must refuse to play.
+        // The decision engine requires all four hand cards to be identified.
+        // Partial or ambiguous matches are rejected instead of guessed.
+        val completeHand = matches.size == 4 &&
+            matches.all { it.card != null } &&
+            matches.mapNotNull { it.card }.distinct().size == 4
+
+        val cards = if (completeHand) matches.mapNotNull { it.card } else emptyList()
+        val handConfidence = if (completeHand) {
+            matches.minOf { it.confidence }
+        } else {
+            0f
+        }
+
         return ScreenObservation(
             elixir = result.elixir,
-            visibleCards = emptyList(),
+            visibleCards = cards,
             enemyThreat = Threat.NONE,
             confidence = result.confidence,
             detectedText = result.allText,
-            handConfidence = 0f,
+            handConfidence = handConfidence,
             capturedAtMs = capturedAt,
-            handRegions = handRegions.regions
+            handRegions = hand.regions
         )
     }
 
     fun close() {
         ocr.close()
+        cardMatcher.close()
     }
 }
