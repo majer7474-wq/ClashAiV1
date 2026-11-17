@@ -184,10 +184,12 @@ class ScreenCaptureService : Service() {
         if (card == lastPlayedCard && now - lastPlayAtMs < 2800L) return
 
         val fromVirtual = VirtualGameSpace.handSlot(slot)
-        val toVirtual = if (card == Card.HOG_RIDER) {
-            VirtualGameSpace.placementForHog()
-        } else {
-            VirtualGameSpace.placementForCycle()
+        val toVirtual = when {
+            card == Card.HOG_RIDER -> VirtualGameSpace.placementForHog()
+            observation.enemyThreat != com.clashai.bot.ai.Threat.NONE &&
+                observation.enemyTargetX != null && observation.enemyTargetY != null ->
+                defensivePlacement(card, observation)
+            else -> VirtualGameSpace.placementForCycle()
         }
         val from = VirtualGameSpace.toScreen(fromVirtual.x.toFloat(), fromVirtual.y.toFloat(), width, height)
         val to = VirtualGameSpace.toScreen(toVirtual.x.toFloat(), toVirtual.y.toFloat(), width, height)
