@@ -20,7 +20,8 @@ class AIController {
             enemyThreat = observation.enemyThreat,
             handConfidence = observation.handConfidence,
             observationAgeMs = (SystemClock.elapsedRealtime() - observation.capturedAtMs)
-                .coerceAtLeast(0L)
+                .coerceAtLeast(0L),
+            elixirObservationAgeMs = elixirTracker.getVisualAgeMs()
         )
 
         return engine.chooseAction(state)
