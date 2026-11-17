@@ -1,6 +1,7 @@
 package com.clashai.bot.input
 
 import rikka.shizuku.Shizuku
+import java.util.concurrent.TimeUnit
 
 object ShizukuInput {
 
@@ -26,6 +27,12 @@ object ShizukuInput {
         }
     }
 
+    /**
+     * Sends one swipe and reports success only after the shell process exits
+     * successfully. A started background thread is not proof that Android
+     * accepted the input command.
+     */
+    @Synchronized
     fun swipe(
         startX: Int,
         startY: Int,
@@ -34,25 +41,30 @@ object ShizukuInput {
         duration: Int = 220
     ): Boolean {
         if (!isReady()) return false
+        if (startX < 0 || startY < 0 || endX < 0 || endY < 0) return false
+        if (duration !in 1..5000) return false
 
+        var process: Process? = null
         return try {
-            val command =
-                "input swipe $startX $startY $endX $endY $duration"
+            val command = "input swipe $startX $startY $endX $endY $duration"
+            process = Shizuku.newProcess(
+                arrayOf("sh", "-c", command),
+                null,
+                null
+            )
 
-            Thread {
-                try {
-                    val process = Shizuku.newProcess(
-                        arrayOf("sh", "-c", command),
-                        null,
-                        null
-                    )
-                    process.waitFor()
-                } catch (_: Exception) {
-                }
-            }.start()
-
-            true
+            val finished = process.waitFor(4, TimeUnit.SECONDS)
+            if (!finished) {
+                process.destroyForcibly()
+                false
+            } else {
+                process.exitValue() == 0
+            }
         } catch (_: Exception) {
+            try {
+                process?.destroyForcibly()
+            } catch (_: Exception) {
+            }
             false
         }
     }
