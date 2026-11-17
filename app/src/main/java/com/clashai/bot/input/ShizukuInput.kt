@@ -31,7 +31,8 @@ object ShizukuInput {
         startY: Int,
         endX: Int,
         endY: Int,
-        duration: Int = 220
+        duration: Int = 220,
+        onComplete: ((Boolean) -> Unit)? = null
     ): Boolean {
         if (!isReady()) return false
 
@@ -46,8 +47,10 @@ object ShizukuInput {
                         null,
                         null
                     )
-                    process.waitFor()
+                    val exitCode = process.waitFor()
+                    onComplete?.invoke(exitCode == 0)
                 } catch (_: Exception) {
+                    onComplete?.invoke(false)
                 }
             }.start()
 
