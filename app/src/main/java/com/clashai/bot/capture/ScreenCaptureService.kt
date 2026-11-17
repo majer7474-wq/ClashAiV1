@@ -13,6 +13,7 @@ import android.media.projection.MediaProjectionManager
 import android.os.*
 import android.util.Log
 import com.clashai.bot.vision.FrameAnalyzer
+import com.clashai.bot.ai.AIController
 import com.clashai.bot.vision.ImageMetricsCalculator
 
 class ScreenCaptureService : Service() {
@@ -33,6 +34,7 @@ class ScreenCaptureService : Service() {
     private var handler: Handler? = null
 
     private val analyzer = FrameAnalyzer()
+    private val aiController = AIController()
 
     override fun onBind(intent: Intent?) = null
 
@@ -167,12 +169,16 @@ class ScreenCaptureService : Service() {
 
             val metrics = ImageMetricsCalculator.calculate(cropped)
             val observation = analyzer.analyze(cropped)
+            val decision = aiController.process(observation)
 
             Log.d(
                 TAG,
                 "Frame ${width}x${height} | " +
                 "Brightness=${metrics.brightness} | " +
-                "Confidence=${observation.confidence}"
+                "OCR=${observation.confidence} | " +
+                "Hand=${observation.visibleCards.size}/4 " +
+                "(${observation.handConfidence}) | " +
+                "Decision=${decision.card?.displayName ?: "WAIT"}: ${decision.reason}"
             )
 
             cropped.recycle()
