@@ -148,7 +148,7 @@ class CardTemplateMatcher(context: Context) : AutoCloseable {
 
     companion object {
         // Conservative until validated against real Xiaomi Pad 6 battle frames.
-        private const val MAX_DISTANCE = 0.19f
+        private const val MAX_DISTANCE = 0.14f
         private const val MIN_MARGIN = 0.025f
     }
 }
