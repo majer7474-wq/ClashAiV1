@@ -28,6 +28,8 @@ class ScreenCaptureService : Service() {
         private const val CHANNEL = "clashai_capture"
         private const val NOTIFICATION_ID = 701
         private const val TAG = "ClashAI"
+        private const val MIN_ACTION_INTERVAL_MS = 900L
+        private const val SAME_CARD_COOLDOWN_MS = 2800L
     }
 
     private var projection: MediaProjection? = null
@@ -41,6 +43,7 @@ class ScreenCaptureService : Service() {
     private var autoplayEnabled = false
     private var lastPlayedCard: Card? = null
     private var lastPlayAtMs = 0L
+    private var lastActionAtMs = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -59,7 +62,7 @@ class ScreenCaptureService : Service() {
         createNotificationChannel()
         val notification = Notification.Builder(this, CHANNEL)
             .setContentTitle("ClashAI")
-            .setContentText("Autoplay analiza igru")
+            .setContentText("Autoplay analizira igru")
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .build()
 
@@ -93,6 +96,7 @@ class ScreenCaptureService : Service() {
             lastProcessedFrameMs = 0L
             lastPlayedCard = null
             lastPlayAtMs = 0L
+            lastActionAtMs = 0L
 
             val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             projection = manager.getMediaProjection(resultCode, data)
@@ -181,7 +185,10 @@ class ScreenCaptureService : Service() {
         if (slot !in 0..3) return
 
         val now = SystemClock.elapsedRealtime()
-        if (card == lastPlayedCard && now - lastPlayAtMs < 2800L) return
+        // Prevent repeated taps/swipes while the previous card animation and
+        // elixir HUD update are still in progress.
+        if (now - lastActionAtMs < MIN_ACTION_INTERVAL_MS) return
+        if (card == lastPlayedCard && now - lastPlayAtMs < SAME_CARD_COOLDOWN_MS) return
 
         val fromVirtual = VirtualGameSpace.handSlot(slot)
         val toVirtual = when {
@@ -198,6 +205,7 @@ class ScreenCaptureService : Service() {
         if (sent) {
             lastPlayedCard = card
             lastPlayAtMs = now
+            lastActionAtMs = now
             aiController.onActionSent(card)
             Log.i(TAG, "PLAY SENT: ${card.displayName} slot=${slot} virtual=(${fromVirtual.x},${fromVirtual.y})->(${toVirtual.x},${toVirtual.y})")
         } else {
@@ -212,9 +220,7 @@ class ScreenCaptureService : Service() {
         val laneX = enemyX.coerceIn(250f, 830f)
         return when (card) {
             Card.CANNON -> VirtualGameSpace.Point(540, 1370)
-            Card.MUSKETEER -> VirtualGameSpace.Point(
-                if (laneX < 540f) 360 else 720, 1660
-            )
+            Card.MUSKETEER -> VirtualGameSpace.Point(if (laneX < 540f) 360 else 720, 1660)
             Card.ICE_GOLEM -> VirtualGameSpace.Point(laneX.toInt(), 1420)
             Card.SKELETONS, Card.ICE_SPIRIT -> VirtualGameSpace.Point(laneX.toInt(), 1370)
             Card.LOG, Card.FIREBALL -> VirtualGameSpace.Point(
