@@ -15,9 +15,9 @@ object EnemyThreatAnalyzer {
     private val air = setOf("balloon", "lava-hound", "minion", "minion-horde", "mega-minion",
         "baby-dragon", "inferno-dragon", "phoenix", "skeleton-dragon", "flying-machine")
     private val swarms = setOf("skeleton", "goblin", "spear-goblin", "bat", "minion", "barbarian",
-        "rascal", "guards", "skeleton-army", "goblin-gang")
+        "rascal", "guard", "guards", "skeleton-army", "goblin-gang")
     private val winConditions = setOf("hog-rider", "ram-rider", "battle-ram", "royal-hog",
-        "wall-breaker", "goblin-barrel", "graveyard", "balloon", "miner", "mort ar")
+        "wall-breaker", "goblin-barrel", "graveyard", "balloon", "miner", "mortar")
 
     fun assess(units: List<ArenaUnit>): ThreatResult {
         // Dataset arena crop is top-to-bottom: opponent half first, our half second.
