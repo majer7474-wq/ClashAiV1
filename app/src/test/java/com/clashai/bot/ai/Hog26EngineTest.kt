@@ -16,13 +16,15 @@ class Hog26EngineTest {
         ),
         handConfidence: Float = 0.95f,
         frameAgeMs: Long = 100L,
-        elixirAgeMs: Long = 100L
+        elixirAgeMs: Long = 100L,
+        elixirConfidence: Float = 0.95f
     ) = BattleState(
         elixir = elixir,
         hand = hand,
         handConfidence = handConfidence,
         observationAgeMs = frameAgeMs,
-        elixirObservationAgeMs = elixirAgeMs
+        elixirObservationAgeMs = elixirAgeMs,
+        elixirConfidence = elixirConfidence
     )
 
     @Test
@@ -34,6 +36,18 @@ class Hog26EngineTest {
     @Test
     fun staleElixirMustWait() {
         val action = Hog26Engine().chooseAction(validState(elixirAgeMs = 1501L))
+        assertNull(action.card)
+    }
+
+    @Test
+    fun lowConfidenceElixirMustWait() {
+        val action = Hog26Engine().chooseAction(validState(elixirConfidence = 0.84f))
+        assertNull(action.card)
+    }
+
+    @Test
+    fun nonFiniteElixirConfidenceMustWait() {
+        val action = Hog26Engine().chooseAction(validState(elixirConfidence = Float.NaN))
         assertNull(action.card)
     }
 
