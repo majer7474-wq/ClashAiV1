@@ -3,7 +3,6 @@ package com.clashai.bot.vision
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Rect
 import android.graphics.RectF
 import com.clashai.bot.ai.Card
 import java.io.File
@@ -49,7 +48,7 @@ class CardTemplateMatcher(context: Context) : AutoCloseable {
 
     fun recognize(frame: Bitmap, regions: List<RectF>): List<Match> {
         val bank = templates
-        if (loading || bank.isEmpty()) return emptyList()
+        if (loading || bank.size != sources.size) return emptyList()
 
         return regions.take(4).map { region ->
             val left = (region.left * frame.width).toInt().coerceIn(0, frame.width - 1)
@@ -82,12 +81,16 @@ class CardTemplateMatcher(context: Context) : AutoCloseable {
         try {
             for ((card, source) in sources) {
                 val file = File(directory, "${card.name.lowercase()}.png")
-                if (!file.exists() || file.length() == 0L) download(source, file)
-                val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: continue
                 try {
-                    loaded += Template(card, descriptor(bitmap))
-                } finally {
-                    bitmap.recycle()
+                    if (!file.exists() || file.length() == 0L) download(source, file)
+                    val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: continue
+                    try {
+                        loaded += Template(card, descriptor(bitmap))
+                    } finally {
+                        bitmap.recycle()
+                    }
+                } catch (_: Exception) {
+                    file.delete()
                 }
             }
             templates = loaded
