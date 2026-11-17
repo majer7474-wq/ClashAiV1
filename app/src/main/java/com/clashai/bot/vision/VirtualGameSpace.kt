@@ -1,10 +1,12 @@
 package com.clashai.bot.vision
 
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * Clash Royale input is described in one fixed virtual portrait canvas.
- * Device resolution is used only at the final OS touch-injection boundary.
+ * Fixed Clash Royale virtual portrait canvas. The game is fitted without
+ * stretching; any unused display area is treated as letterboxing.
+ * Device pixels are consulted only when translating a virtual touch to Android.
  */
 object VirtualGameSpace {
     const val WIDTH = 1080f
@@ -14,11 +16,16 @@ object VirtualGameSpace {
 
     fun toScreen(x: Float, y: Float, capturedWidth: Int, capturedHeight: Int): Point {
         require(capturedWidth > 0 && capturedHeight > 0)
+        val scale = min(capturedWidth / WIDTH, capturedHeight / HEIGHT)
+        val drawnWidth = WIDTH * scale
+        val drawnHeight = HEIGHT * scale
+        val offsetX = (capturedWidth - drawnWidth) / 2f
+        val offsetY = (capturedHeight - drawnHeight) / 2f
         val safeX = x.coerceIn(0f, WIDTH)
         val safeY = y.coerceIn(0f, HEIGHT)
         return Point(
-            (safeX * capturedWidth / WIDTH).roundToInt().coerceIn(0, capturedWidth - 1),
-            (safeY * capturedHeight / HEIGHT).roundToInt().coerceIn(0, capturedHeight - 1)
+            (offsetX + safeX * scale).roundToInt().coerceIn(0, capturedWidth - 1),
+            (offsetY + safeY * scale).roundToInt().coerceIn(0, capturedHeight - 1)
         )
     }
 
