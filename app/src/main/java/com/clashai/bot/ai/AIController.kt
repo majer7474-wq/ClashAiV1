@@ -1,5 +1,6 @@
 package com.clashai.bot.ai
 
+import android.os.SystemClock
 import com.clashai.bot.vision.ScreenObservation
 
 class AIController {
@@ -9,20 +10,17 @@ class AIController {
     private val enemyTracker = EnemyTracker()
 
     fun process(observation: ScreenObservation): AIAction {
+        observation.elixir?.let(elixirTracker::update)
 
-        observation.elixir?.let {
-            elixirTracker.update(it)
-        }
-
-        observation.visibleCards.forEach {
-            enemyTracker.recordEnemyCard(it)
-        }
-
+        // visibleCards represents our own hand, never the opponent's deck.
         val state = BattleState(
             elixir = elixirTracker.getElixir(),
             hand = observation.visibleCards,
             enemyCards = enemyTracker.getKnownCards(),
-            enemyThreat = observation.enemyThreat
+            enemyThreat = observation.enemyThreat,
+            handConfidence = observation.handConfidence,
+            observationAgeMs = (SystemClock.elapsedRealtime() - observation.capturedAtMs)
+                .coerceAtLeast(0L)
         )
 
         return engine.chooseAction(state)
