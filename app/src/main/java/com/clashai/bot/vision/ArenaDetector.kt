@@ -69,7 +69,7 @@ class ArenaDetector(context: Context) : AutoCloseable {
         val resizedH = (SOURCE_H * scale).toInt()
         val padX = (SIZE - resizedW) / 2
         val padY = (SIZE - resizedH) / 2
-        val output = FloatArray(3 * SIZE * SIZE)
+        val output = FloatArray(3 * SIZE * SIZE).apply { fill(114f / 255f) }
         val plane = SIZE * SIZE
 
         for (y in 0 until resizedH) {
