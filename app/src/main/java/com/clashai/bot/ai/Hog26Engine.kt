@@ -34,6 +34,10 @@ class Hog26Engine {
             return wait("Pouzdanost očitanja eliksira nije dovoljna")
         }
 
+        if (!state.elixirConfidence.isFinite() || state.elixirConfidence < 0.85f) {
+            return wait("Pouzdanost očitanja eliksira nije dovoljna")
+        }
+
         if (state.hand.size != 4 || state.handConfidence < 0.85f) {
             return wait("Prepoznavanje sve 4 karte nije potvrđeno")
         }
