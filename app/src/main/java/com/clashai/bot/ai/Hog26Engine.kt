@@ -21,6 +21,15 @@ class Hog26Engine {
 
     fun chooseAction(state: BattleState): AIAction {
 
+        // Fail closed: never make a move from incomplete, uncertain, or stale vision.
+        if (state.observationAgeMs > 1500L) {
+            return wait("Zastarjela slika - čekam novi frame")
+        }
+
+        if (state.hand.size != 4 || state.handConfidence < 0.85f) {
+            return wait("Prepoznavanje sve 4 karte nije potvrđeno")
+        }
+
         if (state.hand.isEmpty()) {
             return wait("Nema dostupnih karata")
         }
