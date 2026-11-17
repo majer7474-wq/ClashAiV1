@@ -26,6 +26,10 @@ class Hog26Engine {
             return wait("Zastarjela slika - čekam novi frame")
         }
 
+        if (state.elixirObservationAgeMs > 1500L) {
+            return wait("Eliksir nije svježe vizualno potvrđen")
+        }
+
         if (state.hand.size != 4 || state.handConfidence < 0.85f) {
             return wait("Prepoznavanje sve 4 karte nije potvrđeno")
         }
