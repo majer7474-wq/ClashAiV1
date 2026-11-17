@@ -289,17 +289,15 @@ class MainActivity : Activity() {
             status.text = "AUTOPLAY BLOCKED: SHIZUKU REQUIRED"
             return
         }
-
         autoplay = enabled
-
-        if (enabled) {
-            status.text = "AUTOPLAY ACTIVE"
-            handler.removeCallbacks(autoTask)
-            handler.post(autoTask)
-        } else {
-            handler.removeCallbacks(autoTask)
-            status.text = "AUTOPLAY STOPPED"
+        handler.removeCallbacks(autoTask)
+        val intent = Intent(this, ScreenCaptureService::class.java).apply {
+            action = if (enabled) ScreenCaptureService.ACTION_AUTO_START
+                     else ScreenCaptureService.ACTION_AUTO_STOP
         }
+        startService(intent)
+        status.text = if (enabled) "AUTOPLAY ARMED: START SCREEN ANALYSIS"
+                      else "AUTOPLAY STOPPED"
     }
 
     private fun selectedCards(): List<Pair<Int, Card>> {
