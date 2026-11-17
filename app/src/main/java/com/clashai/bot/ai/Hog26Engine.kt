@@ -30,21 +30,32 @@ class Hog26Engine {
         val affordable = state.hand.filter { it.cost <= state.elixir }
         if (affordable.isEmpty()) return wait("Čekam eliksir")
 
-        if (state.enemyThreat == Threat.HIGH_DANGER) {
-            return chooseDefense(affordable, "Visoka prijetnja")
-        }
-        if (state.enemyThreat == Threat.SWARM && Card.LOG in affordable) {
-            return action(Card.LOG, "Obrana protiv swarm jedinica", 100, "Putanja protivnika")
-        }
-        if (state.enemyThreat == Threat.TANK) {
-            if (Card.CANNON in affordable) return action(Card.CANNON, "Povlačenje tanka", 95, "Središte arene")
-            if (Card.MUSKETEER in affordable) return action(Card.MUSKETEER, "Obrana protiv tanka", 90, "Iza vlastite kule")
-        }
-        if (state.enemyThreat == Threat.AIR && Card.MUSKETEER in affordable) {
-            return action(Card.MUSKETEER, "Protuzračna obrana", 95, "Iza vlastite kule")
-        }
-        if (state.enemyThreat == Threat.WIN_CONDITION && Card.CANNON in affordable) {
-            return action(Card.CANNON, "Zaustavljanje win conditiona", 90, "Središte arene")
+        when (state.enemyThreat) {
+            Threat.AIR -> return when {
+                Card.MUSKETEER in affordable -> action(Card.MUSKETEER, "Protuzračna obrana", 100, "Iza vlastite kule")
+                Card.FIREBALL in affordable -> action(Card.FIREBALL, "Protuzračna pomoć", 85, "Grupa protivnika")
+                else -> wait("Čuvanje eliksira za protuzračnu obranu")
+            }
+            Threat.SWARM -> return when {
+                Card.LOG in affordable -> action(Card.LOG, "Obrana protiv swarm jedinica", 100, "Putanja protivnika")
+                Card.FIREBALL in affordable -> action(Card.FIREBALL, "Čišćenje swarm jedinica", 85, "Grupa protivnika")
+                Card.ICE_SPIRIT in affordable -> action(Card.ICE_SPIRIT, "Privremeno zaustavljanje swarma", 65, "Putanja protivnika")
+                else -> wait("Čekam kartu za swarm obranu")
+            }
+            Threat.TANK -> return when {
+                Card.CANNON in affordable -> action(Card.CANNON, "Povlačenje tanka", 100, "Središte arene")
+                Card.MUSKETEER in affordable -> action(Card.MUSKETEER, "Obrana protiv tanka", 90, "Iza vlastite kule")
+                Card.ICE_GOLEM in affordable && Card.SKELETONS in affordable ->
+                    action(Card.ICE_GOLEM, "Kiting tanka", 75, "Obrambena pozicija")
+                else -> wait("Čekam obrambenu kartu protiv tanka")
+            }
+            Threat.WIN_CONDITION -> return when {
+                Card.CANNON in affordable -> action(Card.CANNON, "Zaustavljanje win conditiona", 100, "Središte arene")
+                Card.ICE_GOLEM in affordable -> action(Card.ICE_GOLEM, "Kiting win conditiona", 75, "Obrambena pozicija")
+                else -> wait("Čekam odgovor na win condition")
+            }
+            Threat.HIGH_DANGER -> return chooseDefense(affordable, "Visoka prijetnja")
+            Threat.NONE -> Unit
         }
 
         // Main Hog 2.6 win condition. Keep one elixir in reserve when possible.
