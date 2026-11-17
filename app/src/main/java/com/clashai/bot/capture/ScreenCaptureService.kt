@@ -21,6 +21,8 @@ import com.clashai.bot.vision.VirtualGameSpace
 
 class ScreenCaptureService : Service() {
     companion object {
+        @Volatile var statusText = "Autoplay nije pokrenut"
+            private set
         const val EXTRA_RESULT = "capture_result"
         const val EXTRA_DATA = "capture_data"
         const val EXTRA_AUTOPLAY = "autoplay_enabled"
@@ -32,6 +34,8 @@ class ScreenCaptureService : Service() {
         private const val SAME_CARD_COOLDOWN_MS = 2800L
     }
 
+    private var stopping = false
+    private var lastStatusAt = 0L
     private var projection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var reader: ImageReader? = null
@@ -59,10 +63,14 @@ class ScreenCaptureService : Service() {
             return START_NOT_STICKY
         }
 
+        if (projection != null) return START_NOT_STICKY
+        stopping = false
+        statusText = "Pokretanje snimanja zaslona…"
         createNotificationChannel()
         val notification = Notification.Builder(this, CHANNEL)
             .setContentTitle("ClashAI")
-            .setContentText("Autoplay analizira igru")
+            .setContentText(statusText)
+            .setOngoing(true)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .build()
 
@@ -100,7 +108,9 @@ class ScreenCaptureService : Service() {
 
             val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             projection = manager.getMediaProjection(resultCode, data)
-            val metrics = resources.displayMetrics
+            val metrics = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            (getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.getRealMetrics(metrics)
             val width = metrics.widthPixels
             val height = metrics.heightPixels
             val density = metrics.densityDpi
@@ -156,6 +166,9 @@ class ScreenCaptureService : Service() {
             val metrics = ImageMetricsCalculator.calculate(frame)
             val observation = analyzer.analyze(frame)
             val decision = aiController.process(observation)
+            reportStatus("Snimanje aktivno · autoplay " + (if (autoplayEnabled) "uključen" else "zaustavljen") +
+                "\nKarte ${observation.visibleCards.size}/4 · eliksir ${observation.elixir ?: "?"}" +
+                "\n${decision.reason}")
 
             Log.d(TAG, "Frame ${width}x${height} | Brightness=${metrics.brightness} | " +
                 "Elixir=${observation.elixir} OCR=${observation.confidence} | " +
@@ -166,6 +179,7 @@ class ScreenCaptureService : Service() {
                 executeDecision(decision.card, observation, width, height)
             }
         } catch (e: Exception) {
+            reportStatus("Greška obrade: ${e.javaClass.simpleName}: ${e.message}", true)
             Log.e(TAG, "Frame processing error", e)
         } finally {
             frame?.recycle()
@@ -178,6 +192,7 @@ class ScreenCaptureService : Service() {
                                 width: Int, height: Int) {
         if (!ShizukuInput.isReady()) {
             autoplayEnabled = false
+            reportStatus("Autoplay zaustavljen: izgubljena Shizuku dozvola", true)
             Log.e(TAG, "Autoplay stop: Shizuku permission lost")
             return
         }
@@ -207,9 +222,11 @@ class ScreenCaptureService : Service() {
             lastPlayAtMs = now
             lastActionAtMs = now
             aiController.onActionSent(card)
+            reportStatus("Poslan unos: ${card.displayName}. Odigravanje nije potvrđeno.", true)
             Log.i(TAG, "PLAY SENT: ${card.displayName} slot=${slot} virtual=(${fromVirtual.x},${fromVirtual.y})->(${toVirtual.x},${toVirtual.y})")
         } else {
             autoplayEnabled = false
+            reportStatus("Autoplay zaustavljen: slanje unosa nije uspjelo", true)
             Log.e(TAG, "INPUT FAILED - autoplay stopped")
         }
     }
@@ -230,6 +247,26 @@ class ScreenCaptureService : Service() {
         }
     }
 
+    private fun reportStatus(message: String, force: Boolean = false) {
+        if (stopping) return
+        val now = SystemClock.elapsedRealtime()
+        if (!force && now - lastStatusAt < 1000) return
+        lastStatusAt = now
+        statusText = message
+        val open = PendingIntent.getActivity(this, 0,
+            Intent(this, com.clashai.bot.MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val stop = PendingIntent.getService(this, 1,
+            Intent(this, ScreenCaptureService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE)
+        val text = "Shizuku: " + (if (ShizukuInput.isReady()) "spojen" else "nije spojen") + "\n" + message
+        val notification = Notification.Builder(this, CHANNEL)
+            .setContentTitle("ClashAI · status autoplay-a")
+            .setContentText(message).setStyle(Notification.BigTextStyle().bigText(text))
+            .setSmallIcon(android.R.drawable.ic_menu_camera).setContentIntent(open)
+            .setOngoing(true).setOnlyAlertOnce(true)
+            .addAction(Notification.Action.Builder(null, "Zaustavi", stop).build()).build()
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
+    }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
             val channel = NotificationChannel(CHANNEL, "ClashAI screen capture", NotificationManager.IMPORTANCE_LOW)
@@ -238,14 +275,18 @@ class ScreenCaptureService : Service() {
     }
 
     private fun stopCapture() {
+        if (stopping) return
+        stopping = true
+        statusText = "Autoplay i snimanje zaustavljeni"
         autoplayEnabled = false
         try {
             virtualDisplay?.release()
             virtualDisplay = null
             reader?.close()
             reader = null
-            projection?.stop()
+            val activeProjection = projection
             projection = null
+            activeProjection?.stop()
             thread?.quitSafely()
             thread = null
             handler = null
