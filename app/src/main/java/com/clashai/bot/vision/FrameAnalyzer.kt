@@ -29,7 +29,6 @@ class FrameAnalyzer(context: Context) {
 
     fun analyze(bitmap: Bitmap): ScreenObservation {
         require(bitmap.width > 0 && bitmap.height > 0)
-        val capturedAt = SystemClock.elapsedRealtime()
         val ocrResult = ocr.analyze(bitmap)
         val hand = handLocator.locate(bitmap)
         val matches = cardMatcher.recognize(bitmap, hand.regions)
@@ -64,7 +63,7 @@ class FrameAnalyzer(context: Context) {
             confidence = ocrResult.confidence,
             detectedText = ocrResult.allText,
             handConfidence = handConfidence,
-            capturedAtMs = capturedAt,
+            // Timestamp after OCR + card matching + detector inference. The AI age guard\n            // measures observation processing latency, not the time before analysis began.\n            capturedAtMs = SystemClock.elapsedRealtime(),
             handRegions = hand.regions,
             enemyTargetX = threat.targetX?.times(VirtualGameSpace.WIDTH),
             enemyTargetY = threat.targetY?.let { 300f + it * 1704f },
