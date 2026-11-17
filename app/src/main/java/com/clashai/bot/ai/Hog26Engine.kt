@@ -19,7 +19,7 @@ class Hog26Engine {
 
     fun chooseAction(state: BattleState): AIAction {
         if (state.observationAgeMs > 1500L) return wait("Zastarjela slika")
-        if (state.elixirObservationAgeMs > 2500L) return wait("Čekam novo očitanje eliksira")
+        if (state.elixirObservationAgeMs > 1500L) return wait("Čekam novo očitanje eliksira")
         if (!state.elixirConfidence.isFinite() || state.elixirConfidence < 0.85f) {
             return wait("Očitavanje eliksira nije dovoljno pouzdano")
         }
