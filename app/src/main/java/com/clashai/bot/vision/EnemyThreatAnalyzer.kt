@@ -38,11 +38,11 @@ object EnemyThreatAnalyzer {
         val count = relevant.size
 
         val threat = when {
-            weightedY > 0.47f && count >= 2 -> Threat.HIGH_DANGER
-            names.any { it in tanks } -> Threat.TANK
             names.any { it in air } -> Threat.AIR
-            count >= 3 || names.count { it in swarms } >= 2 -> Threat.SWARM
+            names.any { it in tanks } -> Threat.TANK
+            names.any { it in swarms } || count >= 3 -> Threat.SWARM
             names.any { it in winConditions } -> Threat.WIN_CONDITION
+            weightedY > 0.47f && count >= 2 -> Threat.HIGH_DANGER
             weightedY > 0.40f -> Threat.HIGH_DANGER
             else -> Threat.NONE
         }
