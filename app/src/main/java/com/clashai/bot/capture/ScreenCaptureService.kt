@@ -190,6 +190,7 @@ class ScreenCaptureService : Service() {
                 "OCR=${observation.confidence} | " +
                 "Hand=${observation.visibleCards.size}/4 " +
                 "(${observation.handConfidence}) | " +
+                "HandROIs=${observation.handRegions.size} | " +
                 "Decision=${decision.card?.displayName ?: "WAIT"}: ${decision.reason}"
             )
 
