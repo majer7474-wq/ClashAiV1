@@ -1,6 +1,7 @@
 package com.clashai.bot.vision
 
 import android.graphics.Bitmap
+import android.graphics.RectF
 import android.os.SystemClock
 import com.clashai.bot.ai.Card
 import com.clashai.bot.ai.Threat
@@ -12,7 +13,8 @@ data class ScreenObservation(
     val confidence: Float,
     val detectedText: String = "",
     val handConfidence: Float = 0f,
-    val capturedAtMs: Long = SystemClock.elapsedRealtime()
+    val capturedAtMs: Long = SystemClock.elapsedRealtime(),
+    val handRegions: List<RectF> = emptyList()
 )
 
 class FrameAnalyzer {
