@@ -12,7 +12,6 @@ class AIController {
     fun process(observation: ScreenObservation): AIAction {
         observation.elixir?.let(elixirTracker::update)
 
-        // visibleCards represents our own hand, never the opponent's deck.
         val state = BattleState(
             elixir = elixirTracker.getElixir(),
             hand = observation.visibleCards,
@@ -26,6 +25,12 @@ class AIController {
         )
 
         return engine.chooseAction(state)
+    }
+
+    @Synchronized
+    fun onActionSent(card: Card) {
+        elixirTracker.spend(card)
+        engine.recordPlay(card)
     }
 
     fun reset() {

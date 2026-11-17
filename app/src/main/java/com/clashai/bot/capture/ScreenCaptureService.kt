@@ -12,15 +12,18 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.*
 import android.util.Log
-import com.clashai.bot.vision.FrameAnalyzer
 import com.clashai.bot.ai.AIController
+import com.clashai.bot.ai.Card
+import com.clashai.bot.input.ShizukuInput
+import com.clashai.bot.vision.FrameAnalyzer
 import com.clashai.bot.vision.ImageMetricsCalculator
+import com.clashai.bot.vision.VirtualGameSpace
 
 class ScreenCaptureService : Service() {
-
     companion object {
         const val EXTRA_RESULT = "capture_result"
         const val EXTRA_DATA = "capture_data"
+        const val EXTRA_AUTOPLAY = "autoplay_enabled"
         const val ACTION_STOP = "clashai.STOP_CAPTURE"
         private const val CHANNEL = "clashai_capture"
         private const val NOTIFICATION_ID = 701
@@ -32,54 +35,54 @@ class ScreenCaptureService : Service() {
     private var reader: ImageReader? = null
     private var thread: HandlerThread? = null
     private var handler: Handler? = null
-
-    private val analyzer = FrameAnalyzer(this)
+    private lateinit var analyzer: FrameAnalyzer
     private val aiController = AIController()
     private var lastProcessedFrameMs = 0L
+    private var autoplayEnabled = false
+    private var lastPlayedCard: Card? = null
+    private var lastPlayAtMs = 0L
+
+    override fun onCreate() {
+        super.onCreate()
+        analyzer = FrameAnalyzer(this)
+    }
 
     override fun onBind(intent: Intent?) = null
 
-    override fun onStartCommand(
-        intent: Intent?,
-        flags: Int,
-        startId: Int
-    ): Int {
-
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            autoplayEnabled = false
             stopCapture()
             return START_NOT_STICKY
         }
 
         createNotificationChannel()
-
         val notification = Notification.Builder(this, CHANNEL)
             .setContentTitle("ClashAI")
-            .setContentText("Analiza ekrana je aktivna")
+            .setContentText("Autoplay analiza igru")
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .build()
 
         if (Build.VERSION.SDK_INT >= 29) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
-        }
+            startForeground(NOTIFICATION_ID, notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+        } else startForeground(NOTIFICATION_ID, notification)
 
         val resultCode = intent?.getIntExtra(EXTRA_RESULT, Activity.RESULT_CANCELED)
             ?: Activity.RESULT_CANCELED
-
         @Suppress("DEPRECATION")
         val data = intent?.getParcelableExtra<Intent>(EXTRA_DATA)
 
+        autoplayEnabled = intent?.getBooleanExtra(EXTRA_AUTOPLAY, false) == true
+        if (autoplayEnabled && !ShizukuInput.isReady()) {
+            Log.e(TAG, "Autoplay zaustavljen: Shizuku nije spreman")
+            autoplayEnabled = false
+        }
         if (resultCode != Activity.RESULT_OK || data == null) {
             Log.e(TAG, "Nedostaje dozvola za snimanje")
             stopCapture()
             return START_NOT_STICKY
         }
-
         startCapture(resultCode, data)
         return START_NOT_STICKY
     }
@@ -88,11 +91,11 @@ class ScreenCaptureService : Service() {
         try {
             aiController.reset()
             lastProcessedFrameMs = 0L
-            val manager =
-                getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            lastPlayedCard = null
+            lastPlayAtMs = 0L
 
+            val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             projection = manager.getMediaProjection(resultCode, data)
-
             val metrics = resources.displayMetrics
             val width = metrics.widthPixels
             val height = metrics.heightPixels
@@ -100,41 +103,22 @@ class ScreenCaptureService : Service() {
 
             thread = HandlerThread("ClashAI-Capture").apply { start() }
             handler = Handler(thread!!.looper)
+            reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
 
-            reader = ImageReader.newInstance(
-                width,
-                height,
-                PixelFormat.RGBA_8888,
-                2
-            )
-
-            projection?.registerCallback(
-                object : MediaProjection.Callback() {
-                    override fun onStop() {
-                        Log.i(TAG, "MediaProjection zaustavljen")
-                        stopCapture()
-                    }
-                },
-                handler
-            )
-
-            reader?.setOnImageAvailableListener({ source ->
-                processFrame(source)
+            projection?.registerCallback(object : MediaProjection.Callback() {
+                override fun onStop() {
+                    Log.i(TAG, "MediaProjection zaustavljen")
+                    stopCapture()
+                }
             }, handler)
 
+            reader?.setOnImageAvailableListener({ source -> processFrame(source) }, handler)
             virtualDisplay = projection?.createVirtualDisplay(
-                "ClashAI-Display",
-                width,
-                height,
-                density,
+                "ClashAI-Display", width, height, density,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                reader?.surface,
-                null,
-                handler
+                reader?.surface, null, handler
             )
-
-            Log.i(TAG, "Snimanje pokrenuto: ${width}x${height}")
-
+            Log.i(TAG, "Snimanje pokrenuto; virtualni koordinatni sustav 1080x2400; autoplay=$autoplayEnabled")
         } catch (e: Exception) {
             Log.e(TAG, "Capture error", e)
             stopCapture()
@@ -143,105 +127,111 @@ class ScreenCaptureService : Service() {
 
     private fun processFrame(source: ImageReader) {
         val image = source.acquireLatestImage() ?: return
-
-        // OCR is synchronous and can take hundreds of milliseconds. Avoid
-        // queueing redundant frames faster than the analysis pipeline can use.
         val now = SystemClock.elapsedRealtime()
-        if (now - lastProcessedFrameMs < 200L) {
+        if (now - lastProcessedFrameMs < 220L) {
             image.close()
             return
         }
         lastProcessedFrameMs = now
 
+        var padded: Bitmap? = null
+        var frame: Bitmap? = null
         try {
             val plane = image.planes[0]
             val buffer = plane.buffer
             val pixelStride = plane.pixelStride
             val rowStride = plane.rowStride
-
             val width = image.width
             val height = image.height
             val paddedWidth = rowStride / pixelStride
 
-            val bitmap = Bitmap.createBitmap(
-                paddedWidth,
-                height,
-                Bitmap.Config.ARGB_8888
-            )
+            padded = Bitmap.createBitmap(paddedWidth, height, Bitmap.Config.ARGB_8888)
+            padded.copyPixelsFromBuffer(buffer)
+            frame = Bitmap.createBitmap(padded, 0, 0, width, height)
 
-            bitmap.copyPixelsFromBuffer(buffer)
-
-            val cropped = Bitmap.createBitmap(
-                bitmap,
-                0,
-                0,
-                width,
-                height
-            )
-
-            val metrics = ImageMetricsCalculator.calculate(cropped)
-            val observation = analyzer.analyze(cropped)
+            val metrics = ImageMetricsCalculator.calculate(frame)
+            val observation = analyzer.analyze(frame)
             val decision = aiController.process(observation)
 
-            Log.d(
-                TAG,
-                "Frame ${width}x${height} | " +
-                "Brightness=${metrics.brightness} | " +
-                "OCR=${observation.confidence} | " +
-                "Hand=${observation.visibleCards.size}/4 " +
-                "(${observation.handConfidence}) | " +
-                "HandROIs=${observation.handRegions.size} | " +
-                "Decision=${decision.card?.displayName ?: "WAIT"}: ${decision.reason}"
-            )
+            Log.d(TAG, "Frame ${width}x${height} | Brightness=${metrics.brightness} | " +
+                "Elixir=${observation.elixir} OCR=${observation.confidence} | " +
+                "Hand=${observation.visibleCards.size}/4 (${observation.handConfidence}) | " +
+                "Decision=${decision.card?.displayName ?: "WAIT"}: ${decision.reason}")
 
-            cropped.recycle()
-            bitmap.recycle()
-
+            if (autoplayEnabled && decision.card != null) {
+                executeDecision(decision.card, observation, width, height)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Frame processing error", e)
         } finally {
+            frame?.recycle()
+            padded?.recycle()
             image.close()
+        }
+    }
+
+    private fun executeDecision(card: Card, observation: com.clashai.bot.vision.ScreenObservation,
+                                width: Int, height: Int) {
+        if (!ShizukuInput.isReady()) {
+            autoplayEnabled = false
+            Log.e(TAG, "Autoplay stop: Shizuku permission lost")
+            return
+        }
+        val slot = observation.visibleCards.indexOf(card)
+        if (slot !in 0..3) return
+
+        val now = SystemClock.elapsedRealtime()
+        if (card == lastPlayedCard && now - lastPlayAtMs < 2800L) return
+
+        val fromVirtual = VirtualGameSpace.handSlot(slot)
+        val toVirtual = if (card == Card.HOG_RIDER) {
+            VirtualGameSpace.placementForHog()
+        } else {
+            VirtualGameSpace.placementForCycle()
+        }
+        val from = VirtualGameSpace.toScreen(fromVirtual.x.toFloat(), fromVirtual.y.toFloat(), width, height)
+        val to = VirtualGameSpace.toScreen(toVirtual.x.toFloat(), toVirtual.y.toFloat(), width, height)
+
+        val sent = ShizukuInput.swipe(from.x, from.y, to.x, to.y, 180)
+        if (sent) {
+            lastPlayedCard = card
+            lastPlayAtMs = now
+            aiController.onActionSent(card)
+            Log.i(TAG, "PLAY SENT: ${card.displayName} slot=${slot} virtual=(${fromVirtual.x},${fromVirtual.y})->(${toVirtual.x},${toVirtual.y})")
+        } else {
+            autoplayEnabled = false
+            Log.e(TAG, "INPUT FAILED - autoplay stopped")
         }
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
-            val channel = NotificationChannel(
-                CHANNEL,
-                "ClashAI screen capture",
-                NotificationManager.IMPORTANCE_LOW
-            )
-
-            getSystemService(NotificationManager::class.java)
-                .createNotificationChannel(channel)
+            val channel = NotificationChannel(CHANNEL, "ClashAI screen capture", NotificationManager.IMPORTANCE_LOW)
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
 
     private fun stopCapture() {
+        autoplayEnabled = false
         try {
             virtualDisplay?.release()
             virtualDisplay = null
-
             reader?.close()
             reader = null
-
             projection?.stop()
             projection = null
-
             thread?.quitSafely()
             thread = null
             handler = null
-
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
-
         } catch (e: Exception) {
             Log.e(TAG, "Stop error", e)
         }
     }
 
     override fun onDestroy() {
-        analyzer.close()
+        if (::analyzer.isInitialized) analyzer.close()
         stopCapture()
         super.onDestroy()
     }

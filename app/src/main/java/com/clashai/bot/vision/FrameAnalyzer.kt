@@ -19,39 +19,31 @@ data class ScreenObservation(
 )
 
 class FrameAnalyzer(context: Context) {
-
     private val handLocator = AdaptiveHandLocator()
     private val cardMatcher = CardTemplateMatcher(context)
     private val ocr = OcrEngine()
 
     fun analyze(bitmap: Bitmap): ScreenObservation {
         require(bitmap.width > 0 && bitmap.height > 0)
-
         val capturedAt = SystemClock.elapsedRealtime()
-        val result = ocr.analyze(bitmap)
+        val ocrResult = ocr.analyze(bitmap)
         val hand = handLocator.locate(bitmap)
         val matches = cardMatcher.recognize(bitmap, hand.regions)
 
-        // The decision engine requires all four hand cards to be identified.
-        // Partial or ambiguous matches are rejected instead of guessed.
-        val completeHand = matches.size == 4 &&
-            matches.all { it.card != null } &&
+        val allFourCertain = matches.size == 4 &&
+            matches.all { it.card != null && it.confidence >= 0.85f } &&
             matches.mapNotNull { it.card }.distinct().size == 4
 
-        val cards = if (completeHand) matches.mapNotNull { it.card } else emptyList()
-        val handConfidence = if (completeHand) {
-            matches.minOf { it.confidence }
-        } else {
-            0f
-        }
+        val cards = if (allFourCertain) matches.mapNotNull { it.card } else emptyList()
+        val confidence = if (allFourCertain) matches.minOf { it.confidence } else 0f
 
         return ScreenObservation(
-            elixir = result.elixir,
+            elixir = ocrResult.elixir,
             visibleCards = cards,
             enemyThreat = Threat.NONE,
-            confidence = result.confidence,
-            detectedText = result.allText,
-            handConfidence = handConfidence,
+            confidence = ocrResult.confidence,
+            detectedText = ocrResult.allText,
+            handConfidence = confidence,
             capturedAtMs = capturedAt,
             handRegions = hand.regions
         )

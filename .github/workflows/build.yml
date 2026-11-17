@@ -2,6 +2,9 @@ name: ClashAI APK Build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/clashai-autoplay-rebuild
 
 permissions:
   contents: read
