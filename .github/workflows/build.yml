@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feature/clashai-autoplay-rebuild
+      - fix/build119-background
 
 permissions:
   contents: read
