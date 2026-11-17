@@ -204,6 +204,24 @@ class ScreenCaptureService : Service() {
         }
     }
 
+    private fun defensivePlacement(card: Card, observation: com.clashai.bot.vision.ScreenObservation): VirtualGameSpace.Point {
+        val enemyX = observation.enemyTargetX ?: 540f
+        val enemyY = observation.enemyTargetY ?: 1050f
+        val laneX = enemyX.coerceIn(250f, 830f)
+        return when (card) {
+            Card.CANNON -> VirtualGameSpace.Point(540, 1370)
+            Card.MUSKETEER -> VirtualGameSpace.Point(
+                if (laneX < 540f) 360 else 720, 1660
+            )
+            Card.ICE_GOLEM -> VirtualGameSpace.Point(laneX.toInt(), 1420)
+            Card.SKELETONS, Card.ICE_SPIRIT -> VirtualGameSpace.Point(laneX.toInt(), 1370)
+            Card.LOG, Card.FIREBALL -> VirtualGameSpace.Point(
+                laneX.toInt(), enemyY.coerceIn(650f, 1320f).toInt()
+            )
+            else -> VirtualGameSpace.placementForCycle()
+        }
+    }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
             val channel = NotificationChannel(CHANNEL, "ClashAI screen capture", NotificationManager.IMPORTANCE_LOW)
