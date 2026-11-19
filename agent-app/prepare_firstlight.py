@@ -47,6 +47,7 @@ def stage_reference_case(fl, assets, catalog):
     expected = {}
     options = ort.SessionOptions()
     options.intra_op_num_threads = 2
+    options.log_severity_level = 3
     for entry in catalog["models"]:
         session = ort.InferenceSession(str(fl / entry["source"]), options, providers=["CPUExecutionProvider"])
         feeds = {node.name: a for node, a in zip(session.get_inputs(), arrays, strict=True)}

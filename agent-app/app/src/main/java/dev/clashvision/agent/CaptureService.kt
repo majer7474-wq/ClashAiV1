@@ -8,7 +8,6 @@ import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.*
-import android.view.WindowManager
 
 class CaptureService : Service() {
     private val channelId = "capture"
@@ -42,25 +41,25 @@ class CaptureService : Service() {
         if (resultCode != Activity.RESULT_OK || data == null) { stopSelf(); return START_NOT_STICKY }
         val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         projection = manager.getMediaProjection(resultCode, data)
-        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val metrics = resources.displayMetrics
         val width = metrics.widthPixels
         val height = metrics.heightPixels
         val density = metrics.densityDpi
         handlerThread = HandlerThread("vision-frames").also { it.start() }
         val handler = Handler(handlerThread!!.looper)
-        reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+        reader = makeReader(width, height, handler)
         projection?.registerCallback(object : MediaProjection.Callback() {
             override fun onStop() { stopSelf() }
-        }, handler)
-        reader?.setOnImageAvailableListener({ source ->
-            source.acquireLatestImage()?.use { image ->
-                // Proof of frame acquisition only. No card detection or learning yet.
-                frames++
-                if (frames % 30 == 0) {
-                    getSystemService(NotificationManager::class.java)
-                        .notify(1, notification("Obrađeno slika: $frames | ${image.width}x${image.height}"))
-                }
+            override fun onCapturedContentResize(width: Int, height: Int) {
+                val current = reader ?: return
+                val activeDisplay = display ?: return
+                if (width <= 0 || height <= 0 || (width == current.width && height == current.height)) return
+                val replacement = makeReader(width, height, handler)
+                activeDisplay.resize(width, height, density)
+                activeDisplay.surface = replacement.surface
+                reader = replacement
+                current.setOnImageAvailableListener(null, null)
+                current.close()
             }
         }, handler)
         display = projection?.createVirtualDisplay(
@@ -70,6 +69,26 @@ class CaptureService : Service() {
         )
         return START_NOT_STICKY
     }
+    private fun makeReader(width: Int, height: Int, handler: Handler): ImageReader {
+        val newReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+        newReader.setOnImageAvailableListener({ source ->
+            if (source !== reader) return@setOnImageAvailableListener
+            source.acquireLatestImage()?.use { image ->
+
+                frames++
+                if (frames % 30 == 0) {
+                    val plane = image.planes[0]
+                    val amount = ElixirGauge.estimate(plane.buffer, image.width, image.height,
+                        plane.rowStride, plane.pixelStride)
+                    val gauge = if (amount >= 0) "$amount/10" else "?"
+                    getSystemService(NotificationManager::class.java)
+                        .notify(1, notification("Slika $frames | procjena eliksira: $gauge"))
+                }
+            }
+        }, handler)
+        return newReader
+    }
+
     override fun onDestroy() {
         display?.release()
         reader?.close()

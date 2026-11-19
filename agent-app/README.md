@@ -1,6 +1,6 @@
 # Clash Vision Agent for Android
 
-The foreground service captures frames with MediaProjection. The model test runs a selected FirstLight V4 policy on a fixed battle observation and checks six action outputs against desktop ONNX Runtime. Elapsed time measures inference only. Screen capture and the model test are independent. Live perception, action dispatch and match learning are unimplemented.
+The foreground service captures frames with MediaProjection. The model test runs a selected FirstLight V4 policy on a fixed battle observation and checks six action outputs against desktop ONNX Runtime. Elapsed time measures inference only. Screen capture and the model test are independent. On a single-game portrait capture the service estimates filled elixir segments and reports unknown if the gauge is ambiguous. Card and arena recognition, live policy input, action dispatch and match learning are unimplemented.
 
 ## Build
 
