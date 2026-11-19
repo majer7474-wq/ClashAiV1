@@ -24,11 +24,13 @@ internal class HandReader(context: Context) : AutoCloseable {
     fun identify(image: Image): List<String?> = centers.mapIndexed { slot, center ->
         val plane = image.planes[0]
         val raw = plane.buffer
-        val width = image.width * if (slot == 4) .078 else .164
+        val hudWidth = minOf(image.width.toDouble(), image.height * 9.0 / 16)
+        val centerX = (image.width - hudWidth) / 2 + center * hudWidth
+        val width = hudWidth * if (slot == 4) .078 else .164
         val bottom = image.height * if (slot == 4) .985 else .943
-        val left = (center * image.width - width / 2).toInt()
+        val left = (centerX - width / 2).toInt()
         val top = (bottom.toInt() - width * 1.23).toInt()
-        val cropWidth = (center * image.width + width / 2).toInt() - left
+        val cropWidth = (centerX + width / 2).toInt() - left
         val cropHeight = bottom.toInt() - top
         val pixels = IntArray(cropWidth * cropHeight)
         for (y in 0 until cropHeight) {
