@@ -4,6 +4,7 @@ plugins {
 }
 android {
     namespace = "dev.clashvision.agent"
+    androidResources.noCompress += "onnx"
     compileSdk = 35
     defaultConfig { applicationId = "dev.clashvision.agent"; minSdk = 29; targetSdk = 34; versionCode = 1; versionName = "0.1" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

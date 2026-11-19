@@ -15,6 +15,7 @@ class CaptureService : Service() {
     private var reader: ImageReader? = null
     private var display: android.hardware.display.VirtualDisplay? = null
     private var handlerThread: HandlerThread? = null
+    private var handReader: HandReader? = null
     private var frames = 0
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -81,8 +82,18 @@ class CaptureService : Service() {
                     val amount = ElixirGauge.estimate(plane.buffer, image.width, image.height,
                         plane.rowStride, plane.pixelStride)
                     val gauge = if (amount >= 0) "$amount/10" else "?"
+                    val hand = if (amount < 0) emptyList() else runCatching {
+                        val detector = handReader ?: HandReader(this).also { handReader = it }
+                        detector.identify(image)
+                    }.getOrElse {
+                        android.util.Log.e("ClashVision", "Hand recognition failed", it)
+                        emptyList()
+                    }
+                    val summary = if (hand.size == 5) {
+                        " | " + hand.take(4).joinToString(", ") { it ?: "?" } + " | sljedeća: " + (hand.last() ?: "?")
+                    } else ""
                     getSystemService(NotificationManager::class.java)
-                        .notify(1, notification("Slika $frames | procjena eliksira: $gauge"))
+                        .notify(1, notification("Slika $frames | procjena eliksira: $gauge$summary"))
                 }
             }
         }, handler)
@@ -93,7 +104,10 @@ class CaptureService : Service() {
         display?.release()
         reader?.close()
         projection?.stop()
-        handlerThread?.quitSafely()
+        handlerThread?.let { thread ->
+            Handler(thread.looper).post { handReader?.close(); handReader = null }
+            thread.quitSafely()
+        }
         super.onDestroy()
     }
 }
