@@ -19,6 +19,7 @@ internal class HandReader(context: Context) : AutoCloseable {
         options.setIntraOpNumThreads(2)
         context.assets.open("vision/hand.onnx").use { env.createSession(it.readBytes(), options) }
     }
+    private val shapes = CardShapes(context.assets.open("vision/hand-shapes.txt").bufferedReader())
     private val centers = doubleArrayOf(.31, .499, .687, .875, .092)
 
     fun identify(image: Image): List<String?> = centers.mapIndexed { slot, center ->
@@ -66,7 +67,8 @@ internal class HandReader(context: Context) : AutoCloseable {
             session.run(mapOf("rgb" to input)).use { result ->
                 val scores = (result[0].value as Array<*>)[0] as FloatArray
                 val index = scores.indices.maxBy { scores[it] }
-                if (scores[index] >= .55f) labels.optString(index.toString()).ifEmpty { null } else null
+                if (scores[index] >= .55f) labels.optString(index.toString()).ifEmpty { null }
+                else shapes.identify(raw, image.width, image.height, plane.rowStride, plane.pixelStride, slot)
             }
         }
     }
