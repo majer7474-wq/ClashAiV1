@@ -2,6 +2,7 @@ package dev.clashvision.agent
 
 import android.app.Activity
 import android.content.*
+
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.widget.*
@@ -16,7 +17,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(28, 28, 28, 28)
         }
-        status = TextView(this).apply { text = "AI Vision: nije pokrenut. Ovo je test snimanja, ne AI model." }
+        status = TextView(this).apply { text = "Snimanje zaslona je zaustavljeno." }
         val start = Button(this).apply {
             text = "Dopusti snimanje zaslona"
             setOnClickListener {
@@ -32,6 +33,36 @@ class MainActivity : Activity() {
             }
         }
         layout.addView(status)
+        val ids = listOf("general", "il", "active_il", "hog26_proactive", "hog26_measured")
+        val models = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, ids)
+        }
+        val modelStatus = TextView(this)
+        val checkModel = Button(this).apply {
+            text = "Testiraj model na spremljenom stanju"
+            setOnClickListener {
+                val id = models.selectedItem.toString()
+                isEnabled = false
+                modelStatus.text = "Učitavanje: $id"
+                Thread {
+                    val message = try {
+                        val ms = FirstLightReference.check(applicationContext, id)
+                        "$id: testni potez potvrđen (${ms} ms)."
+                    } catch (error: Exception) {
+                        "Model: ${error.cause?.message ?: error.message}"
+                    }
+                    runOnUiThread {
+                        if (!isDestroyed) {
+                            modelStatus.text = message
+                            isEnabled = true
+                        }
+                    }
+                }.start()
+            }
+        }
+        layout.addView(models)
+        layout.addView(checkModel)
+        layout.addView(modelStatus)
         layout.addView(start, ViewGroup.LayoutParams(-1, -2))
         layout.addView(stop, ViewGroup.LayoutParams(-1, -2))
         setContentView(layout)

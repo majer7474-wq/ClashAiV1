@@ -1,16 +1,9 @@
-# Clash Vision Agent — Android split-screen capture prototype
+# Clash Vision Agent for Android
 
-A **separate Android application** that requests MediaProjection screen-capture permission, runs a foreground service, and counts captured frames. It is **not** yet an AI agent, autonomous controller, card recognizer, or learning system.
+The foreground service captures frames with MediaProjection. The model test runs a selected FirstLight V4 policy on a fixed battle observation and checks six action outputs against desktop ONNX Runtime. Elapsed time measures inference only. Screen capture and the model test are independent. Live perception, action dispatch and match learning are unimplemented.
 
 ## Build
-Use GitHub Actions workflow `build-agent.yml` (or Gradle 8.9 + JDK 17 locally). APK will be a workflow artifact if the build succeeds.
 
-## Test
-Install on Android 14, open in split screen with Clash Royale, tap 'Dopusti snimanje zaslona', approve **entire screen** capture (not just this app), and inspect notification frame counter. Depending on game/platform secure-surface policy, frames may be black. No bypass is attempted.
+The build-agent workflow checks out pinned FL Royale and FirstLight CR sources, verifies the five checkpoint hashes, exports each policy to ONNX and checks its outputs against PyTorch. It stages the model catalog, tensor schema, bindings, recurrent policy runtime and license notices under app/build/firstlight before invoking Gradle. If building locally, use the Python dependencies and preparation command in that workflow before running Gradle. Run preparation again after a Gradle clean.
 
-## Known limitations
-- Screen-capture consent is required on every new capture session.
-- Frame count alone does not prove the game content is visible.
-- Split-screen changes dimensions and may trigger capture resize; current prototype needs resize handling.
-- No AI inference, game recognition, input injection, or learning implemented.
-- Captured frames are not uploaded or persisted.
+The model test is available under “Testiraj model na spremljenom stanju”. A successful result verifies model execution on the reference state. It does not place a card. The service can capture independently using Android's consent dialog.
